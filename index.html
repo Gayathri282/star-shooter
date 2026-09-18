@@ -3,58 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Knife Hit - Blade Thrower</title>
-  <meta name="description" content="Throw knives at the spinning log without hitting other knives. How many can you land?">
+  <title>Knife Toss! 🔪</title>
+  <meta name="description" content="Throw knives onto the spinning wheel without hitting the others!">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="game" id="gameRoot">
+  <div class="page">
 
-    <!-- Header Bar -->
-    <header class="header-bar">
-      <div class="title-group">
-        <div class="title">🔪 Knife Hit</div>
-        <div class="subtitle">Throw blades — don't hit other knives!</div>
+    <div class="card">
+      <!-- Title -->
+      <div class="title-row">
+        <div class="title">🔪 Knife Toss!</div>
+        <div class="subtitle">Stick knives on the wheel — don't crash!</div>
       </div>
-      <button class="audio-btn" id="audioBtn" title="Toggle Sound" aria-label="Toggle Sound">
-        <span id="audioIcon">🔊</span>
-      </button>
-    </header>
 
-    <!-- Stats Row -->
-    <div class="stats-grid">
-      <div class="stat">
-        <b id="score">0</b>
-        <span>SCORE</span>
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-box score-box">
+          <div class="stat-val" id="score">0</div>
+          <div class="stat-lbl">SCORE</div>
+        </div>
+        <div class="stat-box level-box">
+          <div class="stat-val" id="level">1</div>
+          <div class="stat-lbl">LEVEL</div>
+        </div>
+        <div class="stat-box best-box">
+          <div class="stat-val" id="best">0</div>
+          <div class="stat-lbl">BEST</div>
+        </div>
       </div>
-      <div class="stat level-stat">
-        <b id="level">1</b>
-        <span>LEVEL</span>
+
+      <!-- Game Canvas -->
+      <canvas id="arena"></canvas>
+
+      <!-- Message overlay -->
+      <div class="overlay hidden" id="overlay">
+        <div class="overlay-box">
+          <div class="overlay-emoji" id="overlayEmoji">🎉</div>
+          <div class="overlay-title" id="overlayTitle">Ready!</div>
+          <div class="overlay-sub"  id="overlaySub">Tap to start!</div>
+          <button class="play-btn" id="playBtn">PLAY! 🎮</button>
+        </div>
       </div>
-      <div class="stat knives-stat">
-        <b id="knivesLeft">5</b>
-        <span>KNIVES</span>
-      </div>
+
+      <!-- Throw button -->
+      <button class="throw-btn" id="throwBtn">🔪 THROW!</button>
     </div>
 
-    <!-- Arena (Canvas) -->
-    <canvas id="arena" aria-label="Knife Hit game arena"></canvas>
-
-    <!-- Overlay Message -->
-    <div class="message hidden" id="message">
-      <h2 id="msgTitle">Ready? 🔪</h2>
-      <p id="msgBody">Tap or press Space to throw!</p>
-      <button class="btn again-btn hidden" id="again">PLAY AGAIN ⚔️</button>
-    </div>
-
-    <!-- Throw Button -->
-    <div class="controls">
-      <button class="btn throw-btn" id="throw">🔪 THROW KNIFE</button>
-    </div>
-
-  </main>
-
+  </div>
   <script src="script.js"></script>
 </body>
 </html>

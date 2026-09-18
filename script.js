@@ -1,20 +1,20 @@
 /**
- * Knife Hit – Blade Thrower
- * Canvas-based knife-throwing game with Web Audio API sound engine
+ * Knife Toss! – Child-friendly canvas game
+ * Rules: tap to throw a knife → it sticks to the spinning wheel's edge.
+ *        If it hits another knife already stuck → Game Over.
+ *        Score as many as you can!
  */
 
-/* ─── Sound Engine ───────────────────────────────────────────────── */
-class SoundEngine {
+/* ─── Sound Engine (no UI button – plays automatically) ─────────── */
+class Sound {
   constructor() {
-    this.ctx = null;
-    this.isMuted = false;
-    this.bgNode = null;
-    this.bgGain = null;
-    this.bgStep = 0;
-    this.bgTimer = null;
+    this.ctx   = null;
+    this.muted = false;
+    this._bgTimer = null;
+    this._bgStep  = 0;
   }
 
-  init() {
+  _init() {
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (AC) this.ctx = new AC();
@@ -22,22 +22,15 @@ class SoundEngine {
     if (this.ctx?.state === 'suspended') this.ctx.resume();
   }
 
-  toggleMute() {
-    this.isMuted = !this.isMuted;
-    if (this.isMuted) this._stopBg();
-    else this._startBg();
-    return this.isMuted;
-  }
-
-  _tone(freq, dur, type = 'sine', vol = 0.15, slide = 0) {
-    if (this.isMuted || !this.ctx) return;
+  _tone(freq, dur, type = 'sine', vol = 0.15, endFreq = null) {
+    if (this.muted || !this.ctx) return;
     try {
       const osc = this.ctx.createOscillator();
       const g   = this.ctx.createGain();
       const now = this.ctx.currentTime;
-      osc.type = type;
+      osc.type  = type;
       osc.frequency.setValueAtTime(freq, now);
-      if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq + slide), now + dur);
+      if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, now + dur);
       g.gain.setValueAtTime(vol, now);
       g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
       osc.connect(g); g.connect(this.ctx.destination);
@@ -45,377 +38,367 @@ class SoundEngine {
     } catch (_) {}
   }
 
-  // Knife throw: sharp metallic swish
-  playThrow() {
-    this.init();
-    this._tone(1400, 0.12, 'sawtooth', 0.18, -900);
-    setTimeout(() => this._tone(800, 0.06, 'square', 0.08), 60);
+  throw()  {
+    this._init();
+    // Swish sound
+    this._tone(900, 0.10, 'sawtooth', 0.16, 300);
   }
 
-  // Knife sticks: thunk + chime
-  playStick(combo) {
-    this.init();
-    // Low thunk
-    this._tone(110, 0.18, 'triangle', 0.3, -30);
-    // Bright ping scaled by combo
-    const semitones = [0, 3, 5, 7, 10, 12, 14, 17];
-    const idx = Math.min(combo - 1, semitones.length - 1);
-    const freq = 880 * Math.pow(2, semitones[idx] / 12);
-    setTimeout(() => this._tone(freq, 0.22, 'sine', 0.18), 60);
+  stick(n) {
+    this._init();
+    // Satisfying thunk + rising ping
+    this._tone(130, 0.15, 'triangle', 0.28);
+    const freqs = [523, 587, 659, 698, 784, 880, 988, 1047];
+    const f = freqs[Math.min(n - 1, freqs.length - 1)];
+    setTimeout(() => this._tone(f, 0.20, 'sine', 0.18), 55);
   }
 
-  // Knife-on-knife collision: harsh clash
-  playClash() {
-    this.init();
-    this._tone(300, 0.08, 'sawtooth', 0.3, 100);
-    this._tone(200, 0.12, 'square',   0.25, -80);
-    setTimeout(() => this._tone(150, 0.25, 'triangle', 0.2, -60), 80);
+  clash() {
+    this._init();
+    this._tone(280, 0.08, 'square', 0.3, 180);
+    setTimeout(() => this._tone(140, 0.22, 'sawtooth', 0.22, 80), 60);
   }
 
-  // Level up: victorious chord burst
-  playLevelUp() {
-    this.init();
-    [523.25, 659.25, 783.99, 1046.50].forEach((f, i) =>
-      setTimeout(() => this._tone(f, 0.3, 'sine', 0.25), i * 75)
+  levelUp() {
+    this._init();
+    [523, 659, 784, 1047].forEach((f, i) =>
+      setTimeout(() => this._tone(f, 0.28, 'sine', 0.22), i * 70)
     );
   }
 
-  // Game over: dramatic descend
-  playGameOver() {
-    this.init();
-    [440, 370, 311, 246.94].forEach((f, i) =>
-      setTimeout(() => this._tone(f, 0.45, 'triangle', 0.22, -30), i * 180)
+  gameOver() {
+    this._init();
+    [440, 370, 311, 247].forEach((f, i) =>
+      setTimeout(() => this._tone(f, 0.4, 'triangle', 0.2), i * 170)
     );
   }
 
-  // Background: tense atmospheric pulse
-  _startBg() {
-    if (this.bgTimer || this.isMuted) return;
-    const notes = [110, 130.81, 110, 98, 110, 123.47, 110, 103.83];
-    this.bgTimer = setInterval(() => {
-      if (!this.isMuted && this.ctx) {
-        this._tone(notes[this.bgStep % notes.length], 0.28, 'sine', 0.035);
-        this.bgStep++;
-      }
-    }, 380);
+  startBg() {
+    if (this._bgTimer) return;
+    const notes = [392, 440, 392, 349, 392, 440, 392, 330];
+    this._bgTimer = setInterval(() => {
+      if (this.ctx) this._tone(notes[this._bgStep++ % notes.length], 0.22, 'sine', 0.03);
+    }, 360);
   }
 
-  _stopBg() {
-    clearInterval(this.bgTimer);
-    this.bgTimer = null;
+  stopBg() {
+    clearInterval(this._bgTimer);
+    this._bgTimer = null;
   }
-
-  startBg() { this._startBg(); }
-  stopBg()  { this._stopBg(); }
 }
 
 /* ─── Game ───────────────────────────────────────────────────────── */
 (() => {
-  /* DOM refs */
-  const canvas    = document.getElementById('arena');
-  const ctx       = canvas.getContext('2d');
-  const scoreEl   = document.getElementById('score');
-  const levelEl   = document.getElementById('level');
-  const knivesEl  = document.getElementById('knivesLeft');
-  const message   = document.getElementById('message');
-  const msgTitle  = document.getElementById('msgTitle');
-  const msgBody   = document.getElementById('msgBody');
-  const throwBtn  = document.getElementById('throw');
-  const againBtn  = document.getElementById('again');
-  const audioBtn  = document.getElementById('audioBtn');
-  const audioIcon = document.getElementById('audioIcon');
+  /* DOM */
+  const canvas      = document.getElementById('arena');
+  const C           = canvas.getContext('2d');
+  const scoreEl     = document.getElementById('score');
+  const levelEl     = document.getElementById('level');
+  const bestEl      = document.getElementById('best');
+  const overlay     = document.getElementById('overlay');
+  const overlayEmoji= document.getElementById('overlayEmoji');
+  const overlayTitle= document.getElementById('overlayTitle');
+  const overlaySub  = document.getElementById('overlaySub');
+  const playBtn     = document.getElementById('playBtn');
+  const throwBtn    = document.getElementById('throwBtn');
 
-  /* Sound */
-  const sound = new SoundEngine();
+  const sfx = new Sound();
 
-  /* Config */
-  const KNIFE_PER_LEVEL = 5;   // knives to clear a log (increases per level)
-  const LOG_RADIUS      = 70;  // base log radius (px, virtual)
-  const KNIFE_W         = 6;
-  const KNIFE_H         = 56;
-  const KNIFE_HANDLE_H  = 18;
-  const HIT_ANGLE_TOL   = 14;  // degrees – how close knives can be before clash
+  /* ── Constants ──────────────────────────────────────────────────── */
+  const KNIVES_PER_LEVEL = 7;   // knives to complete a level (increases)
+  const SAFE_GAP_DEG     = 15;  // minimum angle gap between knives (degrees)
+  const KNIFE_LEN        = 40;  // total visual knife length
+  const KNIFE_BLADE      = 28;  // blade portion
+  const KNIFE_W          = 7;
 
-  /* State */
-  let score, level, knivesLeft, stuckKnives, logAngle, logSpeed;
-  let flying, flyY, flyDone, busy, playing;
-  let raf, dpr, W, H, cx, cy, logY;
-  let combo;
-  let levelFlash = 0;
-  let particles  = [];
+  /* ── State ──────────────────────────────────────────────────────── */
+  let score, level, best, stuckAngles, wheelAngle, wheelSpeed;
+  let flyingY, flyingActive, flyDone, busy;
+  let playing = false;
+  let raf     = null;
+  let S       = 0;   // canvas logical size (square)
+  let dpr     = 1;
+  let particles = [];
+  let shakeFrames = 0;
 
-  /* ── Resize canvas ─────────────────────────────────────────────── */
+  /* ── Resize (square canvas) ─────────────────────────────────────── */
   function resize() {
     const rect = canvas.getBoundingClientRect();
     dpr = window.devicePixelRatio || 1;
-    W   = rect.width;
-    H   = rect.height;
-    canvas.width  = W * dpr;
-    canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    cx   = W / 2;
-    logY = H * 0.35;
+    S   = Math.round(rect.width);
+    canvas.width  = S * dpr;
+    canvas.height = S * dpr;
+    C.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  /* ── Reset / Init ──────────────────────────────────────────────── */
-  function initLevel() {
-    stuckKnives = [];
-    logAngle    = 0;
-    flying      = false;
-    flyDone     = true;
-    busy        = false;
-    flyY        = H - 80;
-    // Speed ramps per level; alternates direction
-    const dir   = level % 2 === 0 ? -1 : 1;
-    logSpeed    = dir * (0.9 + (level - 1) * 0.18);
-    knivesLeft  = KNIFE_PER_LEVEL + Math.floor((level - 1) / 2);
-    knivesEl.textContent = knivesLeft;
+  function wheelR() { return S * 0.28; }
+  function cx()     { return S / 2; }
+  function cy()     { return S * 0.40; }    // wheel a bit above centre
+
+  /* ── Level init ─────────────────────────────────────────────────── */
+  function startLevel() {
+    stuckAngles  = [];
+    wheelAngle   = 0;
+    flyingActive = false;
+    flyDone      = true;
+    busy         = false;
+    flyingY      = S - 30;
+    // Alternate spin direction; speed grows with level
+    const dir    = level % 2 === 0 ? -1 : 1;
+    wheelSpeed   = dir * (0.55 + (level - 1) * 0.15);
   }
 
-  function reset() {
-    score       = 0;
-    level       = 1;
-    combo       = 0;
-    playing     = true;
-    particles   = [];
-    levelFlash  = 0;
-    scoreEl.textContent  = '0';
-    levelEl.textContent  = '1';
-    message.classList.add('hidden');
-    throwBtn.classList.remove('hidden');
-    againBtn.classList.add('hidden');
-    initLevel();
-    if (raf) cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(gameLoop);
-    sound.startBg();
+  function fullReset() {
+    score        = 0;
+    level        = 1;
+    particles    = [];
+    shakeFrames  = 0;
+    scoreEl.textContent = '0';
+    levelEl.textContent = '1';
+    startLevel();
   }
 
-  /* ── Drawing ───────────────────────────────────────────────────── */
-  function drawLog() {
-    const r = logRadius();
-    ctx.save();
-    ctx.translate(cx, logY);
-    ctx.rotate(logAngle * Math.PI / 180);
+  /* ── Drawing helpers ────────────────────────────────────────────── */
+  function drawWheel() {
+    const r   = wheelR();
+    const x   = cx(), y = cy();
 
-    // Wood grain rings
-    for (let ring = r; ring > 10; ring -= 14) {
-      ctx.beginPath();
-      ctx.arc(0, 0, ring, 0, Math.PI * 2);
-      ctx.strokeStyle = ring === r ? '#5C3D20' : `rgba(92,61,32,${0.3 - ring / (r * 5)})`;
-      ctx.lineWidth   = ring === r ? 4 : 1.5;
-      ctx.stroke();
-    }
+    C.save();
+    C.translate(x, y);
+    C.rotate(wheelAngle * Math.PI / 180);
 
-    // Base log fill
-    const grad = ctx.createRadialGradient(-r * 0.2, -r * 0.2, 0, 0, 0, r);
-    grad.addColorStop(0,   '#C4885A');
-    grad.addColorStop(0.55,'#8B5E3C');
-    grad.addColorStop(1,   '#4A2C10');
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.fillStyle = grad;
-    ctx.fill();
+    // Shadow
+    C.shadowColor   = 'rgba(180,100,220,0.25)';
+    C.shadowBlur    = 18;
 
-    // Dark outline
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.strokeStyle = '#3a1e08';
-    ctx.lineWidth   = 3;
-    ctx.stroke();
+    // Outer ring
+    C.beginPath();
+    C.arc(0, 0, r, 0, Math.PI * 2);
+    C.fillStyle = '#ffb347';
+    C.fill();
 
-    // Center dot
-    ctx.beginPath();
-    ctx.arc(0, 0, 6, 0, Math.PI * 2);
-    ctx.fillStyle = '#3a1e08';
-    ctx.fill();
+    C.shadowBlur = 0;
 
-    ctx.restore();
+    // Inner rings (decorative)
+    [0.78, 0.55, 0.32].forEach((s, i) => {
+      const colors = ['#ff8c42', '#ff6b35', '#ff4e1a'];
+      C.beginPath();
+      C.arc(0, 0, r * s, 0, Math.PI * 2);
+      C.fillStyle = colors[i];
+      C.fill();
+    });
+
+    // Center circle
+    C.beginPath();
+    C.arc(0, 0, r * 0.14, 0, Math.PI * 2);
+    C.fillStyle = '#fff3e0';
+    C.fill();
+    C.strokeStyle = '#cc5500';
+    C.lineWidth   = 2.5;
+    C.stroke();
+
+    // Outer border
+    C.beginPath();
+    C.arc(0, 0, r, 0, Math.PI * 2);
+    C.strokeStyle = '#cc5500';
+    C.lineWidth   = 3.5;
+    C.stroke();
+
+    C.restore();
   }
 
-  function drawStuckKnife(angleDeg) {
-    const r    = logRadius();
-    const rad  = angleDeg * Math.PI / 180;
-    const tipX = cx + Math.cos(rad - Math.PI / 2) * r;
-    const tipY = logY + Math.sin(rad - Math.PI / 2) * r;
+  // Draw a knife given: tip position (tx,ty), pointing upward (rotate by angle)
+  function _knife(C, len, bladeLen, w, highlight) {
+    const handleLen = len - bladeLen;
 
-    ctx.save();
-    ctx.translate(tipX, tipY);
-    ctx.rotate(rad);
-    _drawKnifePath(true);
-    ctx.restore();
-  }
+    // Blade (triangle pointing up)
+    C.beginPath();
+    C.moveTo(0, -bladeLen);          // tip
+    C.lineTo( w / 2,  0);
+    C.lineTo(-w / 2,  0);
+    C.closePath();
+    const bg = C.createLinearGradient(-w / 2, 0, w / 2, 0);
+    bg.addColorStop(0,   '#b0cce8');
+    bg.addColorStop(0.45,'#e8f4ff');
+    bg.addColorStop(1,   '#7aaac8');
+    C.fillStyle   = bg;
+    C.fill();
+    C.strokeStyle = '#4a80a8';
+    C.lineWidth   = 1;
+    C.stroke();
 
-  function drawFlyingKnife() {
-    ctx.save();
-    ctx.translate(cx, flyY);
-    _drawKnifePath(false);
-    ctx.restore();
-  }
+    // Shine
+    C.beginPath();
+    C.moveTo(w * 0.05, -bladeLen + 4);
+    C.lineTo(w * 0.35, -4);
+    C.strokeStyle = 'rgba(255,255,255,0.65)';
+    C.lineWidth   = 1.5;
+    C.stroke();
 
-  function _drawKnifePath(stuck) {
-    // Blade
-    const bladeLen = KNIFE_H - KNIFE_HANDLE_H;
-    const bladeW   = KNIFE_W;
-    ctx.beginPath();
-    ctx.moveTo(0, -bladeLen);          // tip
-    ctx.lineTo(bladeW / 2, 0);
-    ctx.lineTo(-bladeW / 2, 0);
-    ctx.closePath();
-    const bladeGrad = ctx.createLinearGradient(-bladeW / 2, 0, bladeW / 2, 0);
-    bladeGrad.addColorStop(0,   '#8aafcc');
-    bladeGrad.addColorStop(0.45,'#d8eaf7');
-    bladeGrad.addColorStop(1,   '#6090b0');
-    ctx.fillStyle = bladeGrad;
-    ctx.fill();
-    // Edge shimmer
-    ctx.beginPath();
-    ctx.moveTo(0, -bladeLen);
-    ctx.lineTo(bladeW * 0.4, 0);
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth   = 1;
-    ctx.stroke();
-
-    // Bolster (guard)
-    ctx.beginPath();
-    ctx.rect(-bladeW * 0.7, -2, bladeW * 1.4, 6);
-    ctx.fillStyle = '#9aafc4';
-    ctx.fill();
+    // Bolster
+    C.fillStyle   = '#9ab0c8';
+    C.beginPath();
+    C.roundRect(-w * 0.75, -2, w * 1.5, 5, 2);
+    C.fill();
 
     // Handle
-    const hG = ctx.createLinearGradient(-bladeW * 0.8, 0, bladeW * 0.8, 0);
-    hG.addColorStop(0,  '#5c2e0a');
-    hG.addColorStop(0.5,'#8B4513');
-    hG.addColorStop(1,  '#5c2e0a');
-    ctx.beginPath();
-    ctx.roundRect(-bladeW * 0.8, 2, bladeW * 1.6, KNIFE_HANDLE_H, 3);
-    ctx.fillStyle = hG;
-    ctx.fill();
-    ctx.strokeStyle = '#3a1500';
-    ctx.lineWidth   = 1;
-    ctx.stroke();
+    const hg = C.createLinearGradient(-w * 0.8, 0, w * 0.8, 0);
+    hg.addColorStop(0,   '#d35400');
+    hg.addColorStop(0.5, '#e67e22');
+    hg.addColorStop(1,   '#d35400');
+    C.beginPath();
+    C.roundRect(-w * 0.75, 2, w * 1.5, handleLen, 3);
+    C.fillStyle   = hg;
+    C.fill();
+    C.strokeStyle = '#7a2900';
+    C.lineWidth   = 1;
+    C.stroke();
+
+    // Handle grip lines
+    C.strokeStyle = 'rgba(0,0,0,0.2)';
+    C.lineWidth   = 1;
+    for (let g = 6; g < handleLen - 3; g += 5) {
+      C.beginPath();
+      C.moveTo(-w * 0.55, 2 + g);
+      C.lineTo( w * 0.55, 2 + g);
+      C.stroke();
+    }
+  }
+
+  // Draw a knife stuck at angle `worldDeg` on the wheel circumference
+  function drawStuckKnife(worldDeg) {
+    const r   = wheelR();
+    const rad = (worldDeg - 90) * Math.PI / 180;
+    const tx  = cx() + Math.cos(rad) * r;
+    const ty  = cy() + Math.sin(rad) * r;
+
+    C.save();
+    C.translate(tx, ty);
+    C.rotate((worldDeg - 90) * Math.PI / 180 + Math.PI / 2);
+    // Knife tip is at (0,0), handle goes downward (+y)
+    _knife(C, KNIFE_LEN, KNIFE_BLADE, KNIFE_W, false);
+    C.restore();
+  }
+
+  // The knife flying upward from the bottom
+  function drawFlyingKnife() {
+    C.save();
+    C.translate(cx(), flyingY);
+    _knife(C, KNIFE_LEN, KNIFE_BLADE, KNIFE_W, true);
+    C.restore();
   }
 
   function drawParticles() {
     particles = particles.filter(p => p.life > 0);
     particles.forEach(p => {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.15; // gravity
+      p.x  += p.vx;
+      p.y  += p.vy;
+      p.vy += 0.18;
       p.life--;
-      ctx.save();
-      ctx.globalAlpha = p.life / p.maxLife;
-      ctx.fillStyle   = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      C.save();
+      C.globalAlpha = p.life / p.maxLife;
+      C.fillStyle   = p.col;
+      C.beginPath();
+      C.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      C.fill();
+      C.restore();
     });
   }
 
-  function spawnParticles(x, y, color, count = 12) {
-    for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
-      const speed = 1.5 + Math.random() * 3;
+  function burst(x, y, cols, n = 14) {
+    for (let i = 0; i < n; i++) {
+      const a = (Math.PI * 2 * i) / n + Math.random() * 0.5;
+      const v = 2 + Math.random() * 3.5;
       particles.push({
         x, y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 1.5,
-        r: 2 + Math.random() * 3,
-        color,
-        life: 28 + Math.floor(Math.random() * 20),
-        maxLife: 48,
+        vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2,
+        r: 3 + Math.random() * 4,
+        col: cols[i % cols.length],
+        life: 30 + Math.floor(Math.random() * 20), maxLife: 50,
       });
     }
   }
 
-  function drawLevelFlash() {
-    if (levelFlash <= 0) return;
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, levelFlash / 20) * 0.45;
-    ctx.fillStyle   = '#ffb830';
-    ctx.fillRect(0, 0, W, H);
-    ctx.restore();
-    levelFlash--;
-  }
-
-  function drawHUD() {
-    // Knife queue at bottom
-    const spacing = 22;
-    const startX  = cx - ((knivesLeft - 1) * spacing) / 2;
-    const y       = H - 30;
-    for (let i = 0; i < knivesLeft; i++) {
-      ctx.save();
-      ctx.translate(startX + i * spacing, y);
-      ctx.scale(0.45, 0.45);
-      _drawKnifePath(false);
-      ctx.restore();
+  // Draw small knife icons as "knife count" indicator at bottom
+  function drawKnifeCount() {
+    const remaining = (KNIVES_PER_LEVEL + Math.floor((level - 1) / 2)) - stuckAngles.length;
+    if (remaining <= 0) return;
+    const iconW = 16, gap = 20;
+    const total = remaining;
+    const startX = cx() - ((total - 1) * gap) / 2;
+    const y = S - 18;
+    for (let i = 0; i < total; i++) {
+      C.save();
+      C.translate(startX + i * gap, y);
+      C.scale(0.32, 0.32);
+      _knife(C, KNIFE_LEN, KNIFE_BLADE, KNIFE_W, false);
+      C.restore();
     }
   }
 
   /* ── Game Logic ─────────────────────────────────────────────────── */
-  function logRadius() {
-    return Math.min(LOG_RADIUS, W * 0.22);
-  }
-
-  function throwKnife() {
-    sound.init();
-    sound.startBg();
+  function doThrow() {
+    sfx._init(); sfx.startBg();
     if (!playing || busy || !flyDone) return;
-    busy    = true;
-    flyDone = false;
-    flying  = true;
-    flyY    = H - 80;
-    sound.playThrow();
+    busy        = true;
+    flyDone     = false;
+    flyingActive= true;
+    flyingY     = S - 30;
+    sfx.throw();
   }
 
   function updateFlying() {
-    if (!flying) return;
-    flyY -= 14; // upward speed
+    if (!flyingActive) return;
+    flyingY -= S * 0.025;   // move knife upward ~2.5% of canvas per frame
 
-    const r    = logRadius();
-    const dist = Math.abs(flyY - logY);
+    const r    = wheelR();
+    const dist = Math.abs(flyingY - cy());
 
-    if (dist <= r + 2) {
-      // Arrived at log – check collision
-      flying = false;
-      const tipAngle = (logAngle + 90) % 360; // direction pointing "up" from log center
+    if (dist <= r + 4) {
+      // Knife reached wheel
+      flyingActive = false;
 
-      // Compute angle where knife hits the log circumference
-      // The knife flies from the bottom (cx, bottom) straight up to (cx, logY - r)
-      // So the hit point on the log is at 270° in world space → adjust for log rotation
-      let hitAngleDeg = (270 - logAngle) % 360;
-      if (hitAngleDeg < 0) hitAngleDeg += 360;
+      // Compute angle at which the knife hits the wheel.
+      // The knife flies straight up from the center-x of canvas.
+      // On the circle, the "top" is 270° in standard math, or -90°.
+      // We want the angle in wheel-local space (subtract current wheelAngle).
+      let hitWorld = 270;  // knife always comes from directly below centre
+      let localHit = ((hitWorld - wheelAngle) % 360 + 360) % 360;
 
-      // Check if any stuck knife is too close
-      const clash = stuckKnives.some(a => {
-        let diff = Math.abs(a - hitAngleDeg) % 360;
-        if (diff > 180) diff = 360 - diff;
-        return diff < HIT_ANGLE_TOL;
+      // Check for clash: any stuck knife within SAFE_GAP_DEG
+      const clash = stuckAngles.some(a => {
+        let d = Math.abs(a - localHit) % 360;
+        if (d > 180) d = 360 - d;
+        return d < SAFE_GAP_DEG;
       });
 
       if (clash) {
-        // Knife hits another knife
-        sound.playClash();
-        spawnParticles(cx, logY - r, '#ff4e4e', 18);
-        lives_lost();
+        shakeFrames = 18;
+        sfx.clash();
+        burst(cx(), cy() - r, ['#ff4e4e','#ff9900','#ff0066'], 22);
+        setTimeout(showGameOver, 500);
+        flyDone = true;
+        busy    = false;
       } else {
-        // Knife sticks!
-        stuckKnives.push(hitAngleDeg);
-        combo++;
-        const pts = 10 + combo * 5;
-        score += pts;
+        // Stick!
+        stuckAngles.push(localHit);
+        score++;
         scoreEl.textContent = score;
-        sound.playStick(combo);
-        spawnParticles(cx, logY - r, '#ffd700', 8);
+        if (score > best) { best = score; bestEl.textContent = best; }
 
-        knivesLeft--;
-        knivesEl.textContent = knivesLeft;
+        sfx.stick(stuckAngles.length);
+        burst(cx(), cy() - r, ['#ffd700','#ff69b4','#00e5ff'], 10);
 
-        if (knivesLeft <= 0) {
-          // Cleared the log → next level
-          setTimeout(nextLevel, 600);
+        // Check if level cleared
+        const needed = KNIVES_PER_LEVEL + Math.floor((level - 1) / 2);
+        if (stuckAngles.length >= needed) {
+          level++;
+          levelEl.textContent = level;
+          sfx.levelUp();
+          burst(cx(), cy(), ['#ffd700','#7cfc00','#ff69b4','#00e5ff'], 30);
+          setTimeout(() => { startLevel(); flyDone = true; busy = false; }, 700);
         } else {
-          flyY    = H - 80;
+          flyingY = S - 30;
           flyDone = true;
           busy    = false;
         }
@@ -423,139 +406,123 @@ class SoundEngine {
     }
   }
 
-  function lives_lost() {
-    // In Knife Hit style: one clash = game over
-    setTimeout(gameOver, 350);
-    flyDone = true;
-    busy    = false;
-  }
-
-  function nextLevel() {
-    level++;
-    levelEl.textContent = level;
-    levelFlash = 40;
-    sound.playLevelUp();
-    spawnParticles(cx, logY, '#ffb830', 30);
-    initLevel();
-    flyDone = true;
-    busy    = false;
-  }
-
-  function gameOver() {
+  function showGameOver() {
     playing = false;
+    sfx.stopBg();
+    sfx.gameOver();
     cancelAnimationFrame(raf);
-    sound.stopBg();
-    sound.playGameOver();
-    setTimeout(() => {
-      message.classList.remove('hidden');
-      msgTitle.textContent = '💀 Game Over!';
-      msgBody.textContent  = `Score: ${score}  |  Level ${level}`;
-      throwBtn.classList.add('hidden');
-      againBtn.classList.remove('hidden');
-    }, 400);
+
+    // Final render with crash state
+    draw();
+
+    overlayEmoji.textContent = '💥';
+    overlayTitle.textContent = 'Game Over!';
+    overlaySub.textContent   = `You scored ${score} 🔪  Best: ${best}`;
+    playBtn.textContent      = 'PLAY AGAIN! 🎮';
+    overlay.classList.remove('hidden');
+    throwBtn.classList.add('hidden');
   }
 
-  /* ── Game Loop ──────────────────────────────────────────────────── */
-  function gameLoop() {
-    ctx.clearRect(0, 0, W, H);
+  /* ── Draw frame ─────────────────────────────────────────────────── */
+  function draw() {
+    C.clearRect(0, 0, S, S);
 
-    if (!playing) return;
+    // Shake effect on clash
+    if (shakeFrames > 0) {
+      const dx = (Math.random() - 0.5) * 8;
+      const dy = (Math.random() - 0.5) * 8;
+      C.save(); C.translate(dx, dy); shakeFrames--;
+    }
 
-    // Rotate log
-    logAngle = (logAngle + logSpeed + 360) % 360;
+    // Background dots (fun, child-friendly)
+    drawBgDots();
 
-    // Draw background subtle grid
-    drawBgGrid();
-
-    // Draw stuck knives (rotate with log)
-    stuckKnives.forEach(a => {
-      const worldAngle = (a + logAngle) % 360;
-      drawStuckKnifeWorld(worldAngle);
+    // Stuck knives – their world angle = local angle + current wheelAngle
+    stuckAngles.forEach(local => {
+      const world = (local + wheelAngle + 360) % 360;
+      drawStuckKnife(world);
     });
 
-    // Draw log
-    drawLog();
+    drawWheel();
 
-    // Flying knife
-    if (flying) updateFlying();
-    if (!flyDone) drawFlyingKnife();
+    if (flyingActive || !flyDone) drawFlyingKnife();
 
     drawParticles();
-    drawLevelFlash();
-    drawHUD();
+    drawKnifeCount();
 
-    raf = requestAnimationFrame(gameLoop);
+    if (shakeFrames >= 0 && shakeFrames < 18) C.restore?.();
   }
 
-  function drawBgGrid() {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.02)';
-    ctx.lineWidth   = 1;
-    for (let x = 0; x < W; x += 30) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-    }
-    for (let y = 0; y < H; y += 30) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-    }
-    ctx.restore();
+  function drawBgDots() {
+    const dotPositions = [
+      [0.1,0.1,'#ffe0f0'], [0.9,0.12,'#e0f0ff'], [0.05,0.6,'#fff0d0'],
+      [0.92,0.55,'#e8ffe0'], [0.5,0.08,'#ffe8f0'], [0.18,0.88,'#f0e0ff'],
+      [0.82,0.90,'#fff0c0'], [0.3,0.72,'#d0f0ff'],
+    ];
+    dotPositions.forEach(([rx,ry,col]) => {
+      C.beginPath();
+      C.arc(rx * S, ry * S, S * 0.05, 0, Math.PI * 2);
+      C.fillStyle = col;
+      C.fill();
+    });
   }
 
-  function drawStuckKnifeWorld(angleDeg) {
-    // Knife tip is at the log perimeter; knife points outward
-    const r   = logRadius();
-    const rad = angleDeg * Math.PI / 180;
-    const tipX = cx  + Math.cos(rad - Math.PI / 2) * r;
-    const tipY = logY + Math.sin(rad - Math.PI / 2) * r;
+  /* ── Loop ───────────────────────────────────────────────────────── */
+  function loop() {
+    if (!playing) return;
+    wheelAngle = (wheelAngle + wheelSpeed + 360) % 360;
+    updateFlying();
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
 
-    ctx.save();
-    ctx.translate(tipX, tipY);
-    ctx.rotate(rad);
-    _drawKnifePath(true);
-    ctx.restore();
+  /* ── Start ──────────────────────────────────────────────────────── */
+  function startGame() {
+    fullReset();
+    playing = true;
+    overlay.classList.add('hidden');
+    throwBtn.classList.remove('hidden');
+    sfx._init();
+    sfx.startBg();
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(loop);
   }
 
   /* ── Events ─────────────────────────────────────────────────────── */
-  function initAudio() {
-    sound.init();
-    sound.startBg();
-  }
-
   throwBtn.addEventListener('pointerdown', e => {
     e.preventDefault();
-    initAudio();
-    throwKnife();
+    doThrow();
   });
 
-  canvas.addEventListener('pointerdown', e => {
-    if (playing) { initAudio(); throwKnife(); }
+  canvas.addEventListener('pointerdown', () => {
+    if (playing) doThrow();
   });
 
-  againBtn.addEventListener('click', () => {
-    initAudio();
-    reset();
-  });
-
-  audioBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    initAudio();
-    const muted = sound.toggleMute();
-    audioIcon.textContent = muted ? '🔇' : '🔊';
-  });
+  playBtn.addEventListener('click', startGame);
 
   document.addEventListener('keydown', e => {
     if (e.code === 'Space') {
       e.preventDefault();
-      initAudio();
-      if (playing) throwKnife();
-      else reset();
+      if (playing) doThrow();
+      else startGame();
     }
   });
 
   window.addEventListener('resize', () => {
     resize();
+    if (!playing) draw();
   });
 
-  /* ── Start ──────────────────────────────────────────────────────── */
+  /* ── Init ───────────────────────────────────────────────────────── */
+  best = 0;
   resize();
-  reset();
+  fullReset();
+  draw();  // draw initial state
+  // Show start screen
+  overlayEmoji.textContent = '🔪';
+  overlayTitle.textContent = 'Knife Toss!';
+  overlaySub.textContent   = 'Throw knives on the spinning wheel!';
+  playBtn.textContent      = 'START! 🎮';
+  overlay.classList.remove('hidden');
+  throwBtn.classList.add('hidden');
 })();
