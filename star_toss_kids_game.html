@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Star Toss - Kids Arcade</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="game">
+    <section class="card" aria-label="Star Toss kids arcade game">
+      <div class="header-top">
+        <div class="title-group">
+          <div class="title">⭐ Star Toss</div>
+          <div class="subtitle">Tap to toss a star at the moving target!</div>
+        </div>
+        <button class="audio-btn" id="audioBtn" title="Toggle Sound">
+          <span id="audioIcon">🔊</span>
+          <span id="audioText">Sound ON</span>
+        </button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat">
+          <b id="score">0</b>
+          <span>SCORE</span>
+        </div>
+        <div class="stat level-stat">
+          <b id="level">1</b>
+          <span>LEVEL</span>
+        </div>
+        <div class="stat">
+          <b id="combo">0</b>
+          <span>STREAK</span>
+        </div>
+      </div>
+
+      <div class="stat" style="margin-bottom: 12px;">
+        <b id="lives">3</b>
+        <span>TRIES REMAINING</span>
+      </div>
+
+      <div class="arena" id="arena">
+        <div class="cloud"></div>
+        <div class="cloud two"></div>
+        <div class="message" id="message">
+          <h2>Ready? ⭐</h2>
+          <p>Tap anywhere or press Space to toss!</p>
+        </div>
+        <div class="target" id="target" aria-label="Moving star target"></div>
+        <div class="projectile" id="projectile"></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn throw-btn" id="throw">⭐ TOSS STAR</button>
+        <button class="btn again-btn hidden" id="again">PLAY AGAIN 🚀</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
