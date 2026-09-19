@@ -36,7 +36,7 @@ html, body {
   right: 16px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   z-index: 10;
   pointer-events: none;
 }
@@ -73,45 +73,7 @@ html, body {
   background: rgba(0, 0, 0, 0.15);
 }
 
-.audio-btn {
-  pointer-events: auto;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  transition: transform 0.15s;
-}
-.audio-btn:active { transform: scale(0.92); }
 
-/* ── Tiny Floating Throw Button (Bottom Center) ── */
-.throw-btn {
-  position: absolute;
-  bottom: 22px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  padding: 10px 28px;
-  min-height: 44px;
-  border: none;
-  border-radius: 50px;
-  background: linear-gradient(135deg, #f472b6 0%, #e84393 100%);
-  color: #fff;
-  font-family: 'Fredoka One', cursive;
-  font-size: 16px;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  box-shadow: 0 4px 18px rgba(232, 67, 147, 0.4), 0 3px 0 #c0277a;
-  transition: transform 0.1s, box-shadow 0.1s;
-}
-.throw-btn:active { transform: translateX(-50%) translateY(2px); box-shadow: 0 1px 0 #c0277a; }
 
 /* ── Message Overlay ───────────────────── */
 .overlay {

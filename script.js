@@ -11,11 +11,11 @@
 
 /* ─── Level Config ─────────────────────────────────────────────────── */
 const LEVELS = [
-  { knives: 6,  minToPass: 3, baseSpeed: 0.70, wait1st: false },   // Level 1: Smooth start
-  { knives: 7,  minToPass: 4, baseSpeed: 1.05, wait1st: true  },   // Level 2: Faster + Waits for 1st knife!
-  { knives: 8,  minToPass: 5, baseSpeed: 1.45, wait1st: false },   // Level 3: Faster spinning
-  { knives: 9,  minToPass: 6, baseSpeed: 1.90, wait1st: true  },   // Level 4: Fast + Waits for 1st knife!
-  { knives: 10, minToPass: 7, baseSpeed: 2.40, wait1st: true  },   // Level 5: Extra Fast + Waits for 1st knife!
+  { knives: 6,  minToPass: 3, baseSpeed: 1.60, wait1st: false },   // Level 1: Fast start
+  { knives: 7,  minToPass: 4, baseSpeed: 2.30, wait1st: true  },   // Level 2: Super fast + Waits for 1st knife
+  { knives: 8,  minToPass: 5, baseSpeed: 3.10, wait1st: false },   // Level 3: Extra fast
+  { knives: 9,  minToPass: 6, baseSpeed: 4.00, wait1st: true  },   // Level 4: Lightning fast
+  { knives: 10, minToPass: 7, baseSpeed: 5.00, wait1st: true  },   // Level 5: Turbo fast
 ];
 function getLevelCfg(lvl) {
   if (lvl <= LEVELS.length) return LEVELS[lvl - 1];
@@ -23,7 +23,7 @@ function getLevelCfg(lvl) {
   return {
     knives: 10 + extra,
     minToPass: 7 + extra,
-    baseSpeed: 2.40 + extra * 0.45,
+    baseSpeed: 5.00 + extra * 0.85,
     wait1st: lvl % 2 === 0 || lvl % 3 === 0
   };
 }
@@ -66,29 +66,29 @@ class Sound {
     this._tone(900, 0.10, 'sawtooth', 0.16, 300);
   }
 
-  stick(n) {
+  /**
+   * Sound effect played when gaining points (knife sticking to wheel)
+   */
+  pointGain(n) {
     this._init();
-    this._tone(130, 0.15, 'triangle', 0.28);
-    const freqs = [523, 587, 659, 698, 784, 880, 988, 1047];
-    const f = freqs[Math.min(n - 1, freqs.length - 1)];
-    setTimeout(() => this._tone(f, 0.20, 'sine', 0.18), 55);
+    // Warm wooden thud + bright double chime on point gain
+    this._tone(150, 0.12, 'triangle', 0.26);
+    const scale = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50, 1174.66, 1318.51];
+    const baseF = scale[Math.min(Math.max(0, n - 1), scale.length - 1)];
+    setTimeout(() => this._tone(baseF, 0.18, 'sine', 0.22), 40);
+    setTimeout(() => this._tone(baseF * 1.25, 0.18, 'sine', 0.18), 85);
   }
 
   /**
    * Playful "boing" chord when knife hits another knife on the spinner.
-   * Uses a descending sine sweep + harmonic major chord for a fun, kid-friendly feel.
    */
   clash() {
     this._init();
-    // Descending boing sweep
     this._tone(880, 0.45, 'sine', 0.24, 180, 0);
-    // Major chord (C5 + E5 + G5) – happy, playful
     this._tone(523, 0.30, 'triangle', 0.18, null, 0.04);
     this._tone(659, 0.30, 'triangle', 0.15, null, 0.04);
     this._tone(784, 0.30, 'triangle', 0.12, null, 0.04);
-    // Spring wobble resonance
     this._tone(440, 0.50, 'sine', 0.10, 100, 0.12);
-    // High cheerful ping
     this._tone(1200, 0.18, 'sine', 0.13, 550, 0.32);
   }
 
@@ -99,33 +99,48 @@ class Sound {
     );
   }
 
+  /**
+   * Sound effect on levelling up - triumphant ascending fanfare
+   */
   levelUp() {
     this._init();
-    [523, 659, 784, 1047].forEach((f, i) =>
-      setTimeout(() => this._tone(f, 0.28, 'sine', 0.22), i * 70)
-    );
+    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98];
+    notes.forEach((f, i) => {
+      setTimeout(() => {
+        this._tone(f, 0.32, 'sine', 0.24);
+        this._tone(f * 0.5, 0.32, 'triangle', 0.14);
+      }, i * 65);
+    });
   }
 
+  /**
+   * Sound effect on game over - dramatic descending tone sweep
+   */
   gameOver() {
     this._init();
-    [440, 370, 311, 247].forEach((f, i) =>
-      setTimeout(() => this._tone(f, 0.4, 'triangle', 0.2), i * 170)
-    );
+    const notes = [587.33, 523.25, 466.16, 392.00, 311.13, 220.00];
+    notes.forEach((f, i) => {
+      setTimeout(() => {
+        this._tone(f, 0.38, 'sawtooth', 0.20, f * 0.85);
+        this._tone(f * 0.5, 0.40, 'triangle', 0.15);
+      }, i * 140);
+    });
   }
 
+  /**
+   * Engaging background music tone loop (BGM)
+   */
   startBg() {
     if (this._bgTimer || this.muted) return;
     this._init();
 
-    // Upbeat, cheerful 16-step melody loop (Hz)
     const melody = [
-      523, 659, 784, 1047,  // C5, E5, G5, C6
-      587, 784, 880, 1175,  // D5, G5, A5, D6
-      440, 523, 659, 880,   // A4, C5, E5, A5
-      349, 440, 523, 698    // F4, A4, C5, F5
+      523.25, 659.25, 783.99, 1046.50,
+      587.33, 783.99, 880.00, 1174.66,
+      659.25, 880.00, 987.77, 1318.51,
+      698.46, 880.00, 1046.50, 1396.91
     ];
 
-    // Warm bass line (C3, G2, A2, F2)
     const bass = [130.81, 98.00, 110.00, 87.31];
 
     this._bgStep = 0;
@@ -134,22 +149,19 @@ class Sound {
       const step = this._bgStep % 16;
       const bar  = Math.floor(step / 4);
 
-      // Lead melody tone
       const noteFreq = melody[step];
       this._tone(noteFreq, 0.16, 'sine', 0.045);
 
-      // Playful bass pulse on downbeats (steps 0, 4, 8, 12)
-      if (step % 4 === 0) {
-        this._tone(bass[bar], 0.26, 'triangle', 0.06);
+      if (step % 4 === 0 || step % 4 === 2) {
+        this._tone(bass[bar], 0.24, 'triangle', 0.055);
       }
 
-      // High cheerful bell sparkle on syncopated 16th beats
-      if (step % 4 === 2) {
-        this._tone(noteFreq * 1.5, 0.08, 'sine', 0.02);
+      if (step % 4 === 3) {
+        this._tone(noteFreq * 1.5, 0.09, 'sine', 0.022);
       }
 
       this._bgStep++;
-    }, 180);
+    }, 120);
   }
 
   stopBg() {
@@ -173,7 +185,6 @@ class Sound {
   const overlayTitle= document.getElementById('overlayTitle');
   const overlaySub  = document.getElementById('overlaySub');
   const playBtn     = document.getElementById('playBtn');
-  const throwBtn    = document.getElementById('throwBtn');
 
   const sfx = new Sound();
 
@@ -183,7 +194,7 @@ class Sound {
   const KNIFE_BLADE   = 28;
   const KNIFE_W       = 7;
   // Speed ramp: wheel speeds up gradually within a level (fraction per frame)
-  const SPEED_RAMP    = 0.00008;
+  const SPEED_RAMP    = 0.00030;
 
   /* ── State ──────────────────────────────────────────────────────── */
   let score, level, best, stuckAngles, wheelAngle, wheelSpeed;
@@ -200,7 +211,8 @@ class Sound {
   let clashFlash        = 0;      // rainbow flash frames remaining after a clash
   let particles         = [];
   let shakeFrames       = 0;
-  let gameStartTime     = 0;      // tracks when game started to hide guide after 10s
+  let gameStartTime     = 0;      // tracks when game started
+  let levelStartTime    = 0;      // tracks when level started for 3s hint
   let waitingForFirstHit= false;  // when true, wheel waits for 1st knife hit to start spinning
   let overlayMode       = 'START';// 'START', 'ADVANCE', or 'FAIL'
   let advanceTimeout    = null;   // timer for level advance transition
@@ -228,9 +240,10 @@ class Sound {
     flyingActive = false;
     flyDone      = true;
     busy         = false;
-    flyingY      = H - 75;
+    flyingY      = H - 85;
     frameCount   = 0;
     knivesLeft   = levelCfg.knives;
+    levelStartTime = Date.now();
 
     // Check if this level waits for the 1st knife to start spinning
     waitingForFirstHit = !!levelCfg.wait1st;
@@ -255,51 +268,101 @@ class Sound {
     startLevel();
   }
 
+  /* ── Spinner Color Themes (Target Spinner) ────────────────────────── */
+  const SPINNER_THEMES = [
+    { rings: ['#dc2626', '#ffffff', '#ef4444', '#ffffff', '#dc2626'], bullseye: '#991b1b', border: '#7f1d1d' }, // L1: Red & White Target
+    { rings: ['#0284c7', '#ffffff', '#0ea5e9', '#ffffff', '#0284c7'], bullseye: '#075985', border: '#0c4a6e' }, // L2: Electric Blue & White
+    { rings: ['#059669', '#ffffff', '#10b981', '#ffffff', '#059669'], bullseye: '#065f46', border: '#064e3b' }, // L3: Emerald Green & White
+    { rings: ['#d97706', '#ffffff', '#f59e0b', '#ffffff', '#d97706'], bullseye: '#92400e', border: '#78350f' }, // L4: Golden Amber & White
+    { rings: ['#7c3aed', '#ffffff', '#8b5cf6', '#ffffff', '#7c3aed'], bullseye: '#5b21b6', border: '#4c1d95' }, // L5: Royal Purple & White
+    { rings: ['#db2777', '#ffffff', '#ec4899', '#ffffff', '#db2777'], bullseye: '#9d174d', border: '#831843' }, // L6: Neon Pink & White
+  ];
+
+  function getSpinnerTheme(lvl) {
+    return SPINNER_THEMES[(lvl - 1) % SPINNER_THEMES.length];
+  }
+
   /* ── Drawing helpers ────────────────────────────────────────────── */
   function drawWheel() {
-    const r   = wheelR();
-    const x   = cx(), y = cy();
+    const r     = wheelR();
+    const x     = cx(), y = cy();
+    const theme = getSpinnerTheme(level);
 
     C.save();
     C.translate(x, y);
-    C.rotate(wheelAngle * Math.PI / 180);
 
-    // Shadow
-    C.shadowColor   = 'rgba(180,100,220,0.25)';
-    C.shadowBlur    = 18;
+    // Outer glow shadow
+    C.shadowColor   = theme.rings[0];
+    C.shadowBlur    = 20;
 
-    // Outer ring
+    // Base container fill
     C.beginPath();
-    C.arc(0, 0, r, 0, Math.PI * 2);
-    C.fillStyle = '#ffb347';
+    C.arc(0, 0, r + 3, 0, Math.PI * 2);
+    C.fillStyle = theme.border;
     C.fill();
-
     C.shadowBlur = 0;
 
-    // Inner rings (decorative)
-    [0.78, 0.55, 0.32].forEach((s, i) => {
-      const colors = ['#ff8c42', '#ff6b35', '#ff4e1a'];
+    // Rotate contents for spinning effect
+    C.rotate(wheelAngle * Math.PI / 180);
+
+    // ── Concentric Target Rings (Outer -> Inner) ──
+    const ringScales = [1.0, 0.78, 0.56, 0.35, 0.18];
+    const ringColors = theme.rings;
+
+    ringScales.forEach((s, i) => {
       C.beginPath();
       C.arc(0, 0, r * s, 0, Math.PI * 2);
-      C.fillStyle = colors[i];
+      C.fillStyle = ringColors[i % ringColors.length];
       C.fill();
+      C.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+      C.lineWidth   = 1.5;
+      C.stroke();
     });
 
-    // Center circle
+    // ── Radial Target Wedges (subtle sectors for motion feedback) ──
+    C.save();
+    C.globalAlpha = 0.07;
+    for (let a = 0; a < 360; a += 45) {
+      C.beginPath();
+      C.moveTo(0, 0);
+      C.arc(0, 0, r, (a * Math.PI) / 180, ((a + 22.5) * Math.PI) / 180);
+      C.closePath();
+      C.fillStyle = '#000000';
+      C.fill();
+    }
+    C.restore();
+
+    // ── Center Bullseye & Gold Point Dot ──
     C.beginPath();
-    C.arc(0, 0, r * 0.14, 0, Math.PI * 2);
-    C.fillStyle = '#fff3e0';
+    C.arc(0, 0, r * 0.18, 0, Math.PI * 2);
+    C.fillStyle = theme.bullseye;
     C.fill();
-    C.strokeStyle = '#cc5500';
-    C.lineWidth   = 2.5;
+
+    C.beginPath();
+    C.arc(0, 0, r * 0.07, 0, Math.PI * 2);
+    C.fillStyle = '#f59e0b'; // Gold center point
+    C.fill();
+    C.strokeStyle = '#ffffff';
+    C.lineWidth   = 2;
     C.stroke();
 
-    // Outer border
+    // ── Outer Rim Border & Metallic Studs ──
     C.beginPath();
     C.arc(0, 0, r, 0, Math.PI * 2);
-    C.strokeStyle = '#cc5500';
-    C.lineWidth   = 3.5;
+    C.strokeStyle = theme.border;
+    C.lineWidth   = 4;
     C.stroke();
+
+    // Small brass rim studs around the edge
+    for (let a = 0; a < 360; a += 30) {
+      const rad = (a * Math.PI) / 180;
+      const sx  = Math.cos(rad) * (r - 4);
+      const sy  = Math.sin(rad) * (r - 4);
+      C.beginPath();
+      C.arc(sx, sy, 2.5, 0, Math.PI * 2);
+      C.fillStyle = '#ffffff';
+      C.fill();
+    }
 
     C.restore();
   }
@@ -463,14 +526,55 @@ class Sound {
       C.stroke();
     });
 
-    // Timing state text badge
-    C.font      = `900 ${Math.round(S * 0.026)}px Nunito, sans-serif`;
+    C.restore();
+  }
+
+  // The resting knife at launch position waiting to be thrown
+  function drawReadyKnife() {
+    if (!playing || flyingActive || knivesLeft <= 0) return;
+    C.save();
+    C.translate(cx(), H - 85);
+    const pulse = Math.sin(frameCount * 0.1) * 3;
+    C.shadowColor = 'rgba(232, 67, 147, 0.7)';
+    C.shadowBlur = 10 + pulse;
+    _knife(C, KNIFE_LEN, KNIFE_BLADE, KNIFE_W, true);
+    C.restore();
+  }
+
+  // "Touch the knife to throw!" hint prompt (shows for 3 seconds then disappears)
+  function drawTouchHint() {
+    if (!playing || knivesLeft <= 0) return;
+    const elapsed = Date.now() - levelStartTime;
+    if (elapsed >= 3000) return; // Disappears completely after 3 seconds
+
+    let opacity = 1;
+    if (elapsed > 2000) {
+      opacity = (3000 - elapsed) / 1000;
+    }
+
+    C.save();
+    C.globalAlpha = Math.max(0, opacity);
+
+    const bounce = Math.sin(frameCount * 0.12) * 3;
+    const textY  = H - 145 + bounce;
+
+    C.font = `900 ${Math.round(Math.min(S * 0.038, 16))}px Fredoka One, Nunito, sans-serif`;
     C.textAlign = 'center';
-    C.fillStyle = guideColor;
-    C.fillText(
-      isBlocked ? '⚠️ WAIT!' : '🎯 THROW NOW!',
-      cx(), targetY + 34
-    );
+
+    const text = '👆 Touch the knife to throw!';
+    const textWidth = C.measureText(text).width;
+
+    C.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    C.shadowColor = 'rgba(232, 67, 147, 0.4)';
+    C.shadowBlur = 10;
+
+    C.beginPath();
+    C.roundRect(cx() - textWidth / 2 - 14, textY - 18, textWidth + 28, 30, 15);
+    C.fill();
+
+    C.fillStyle = '#e84393';
+    C.shadowBlur = 0;
+    C.fillText(text, cx(), textY + 4);
 
     C.restore();
   }
@@ -594,14 +698,14 @@ class Sound {
     busy         = true;
     flyDone      = false;
     flyingActive = true;
-    flyingY      = H - 75;
+    flyingY      = H - 85;
     knivesLeft--;
     sfx.throw();
   }
 
   function updateFlying() {
     if (!flyingActive) return;
-    flyingY -= Math.max(12, H * 0.022);
+    flyingY -= Math.max(28, H * 0.055);
 
     const r    = wheelR();
     const dist = Math.abs(flyingY - cy());
@@ -650,7 +754,7 @@ class Sound {
         scoreEl.textContent = score;
         if (score > best) { best = score; bestEl.textContent = best; }
 
-        sfx.stick(stuckAngles.length);
+        sfx.pointGain(stuckAngles.length);
         // Wood chip particle burst where knife stabs into wheel log
         burst(cx(), cy() + r, ['#ffd700','#ff69b4','#00e5ff','#8b4513','#d2691e'], 16);
 
@@ -688,6 +792,11 @@ class Sound {
 
   function advanceLevel() {
     level++;
+    // Pause the game state and stop background music while closing / overlay screen is shown
+    playing = false;
+    sfx.stopBg();
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+
     sfx.levelUp();
     burst(cx(), cy(), ['#ffd700','#7cfc00','#ff69b4','#00e5ff'], 40);
 
@@ -697,43 +806,41 @@ class Sound {
     overlaySub.textContent   = `Speed up! Land ${getLevelCfg(level).minToPass}+ knives to pass`;
     playBtn.textContent      = 'GO! 🚀';
     overlay.classList.remove('hidden');
-    throwBtn.classList.add('hidden');
 
     if (advanceTimeout) clearTimeout(advanceTimeout);
     advanceTimeout = setTimeout(() => {
       if (overlayMode === 'ADVANCE' && !overlay.classList.contains('hidden')) {
         continueToNextLevel();
       }
-    }, 1800);
+    }, 1000);
   }
 
   function showLevelFail() {
     overlayMode = 'FAIL';
     playing = false;
     sfx.stopBg();
-    cancelAnimationFrame(raf);
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    sfx.levelFail();
     draw();
     overlayEmoji.textContent = '😢';
     overlayTitle.textContent = 'Level Failed!';
     overlaySub.textContent   = `Needed ${levelCfg.minToPass}, got ${stuckAngles.length}. Score: ${score}`;
     playBtn.textContent      = 'TRY AGAIN! 🎮';
     overlay.classList.remove('hidden');
-    throwBtn.classList.add('hidden');
   }
 
   function showGameOver() {
     overlayMode = 'FAIL';
     playing = false;
     sfx.stopBg();
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
     sfx.gameOver();
-    cancelAnimationFrame(raf);
     draw();
     overlayEmoji.textContent = '💥';
     overlayTitle.textContent = 'CLASH!';
     overlaySub.textContent   = `Knife hit a knife! Score: ${score}  Best: ${best}`;
     playBtn.textContent      = 'PLAY AGAIN! 🎮';
     overlay.classList.remove('hidden');
-    throwBtn.classList.add('hidden');
   }
 
   /* ── Draw frame ─────────────────────────────────────────────────── */
@@ -761,11 +868,19 @@ class Sound {
       drawStuckKnife(world);
     });
 
-    // 3. Draw aiming laser & target reticle (shows where & when to throw)
+    // 3. Draw aiming laser & target reticle (shows where to aim)
     drawAimingGuide();
 
-    // 4. Draw flying knife
-    if (flyingActive || !flyDone) drawFlyingKnife();
+    // 4. Draw ready knife at bottom launch position & flying knife
+    if (!flyingActive && flyDone && knivesLeft > 0) {
+      drawReadyKnife();
+    }
+    if (flyingActive || !flyDone) {
+      drawFlyingKnife();
+    }
+
+    // 5. Draw 3-second touch prompt
+    drawTouchHint();
 
     drawParticles();
     drawHUD();
@@ -814,10 +929,10 @@ class Sound {
     if (advanceTimeout) clearTimeout(advanceTimeout);
     overlayMode = 'START';
     fullReset();
-    playing       = true;
-    gameStartTime = Date.now();
+    playing        = true;
+    gameStartTime  = Date.now();
+    levelStartTime = Date.now();
     overlay.classList.add('hidden');
-    throwBtn.classList.remove('hidden');
     sfx._init();
     sfx.startBg();
     if (raf) cancelAnimationFrame(raf);
@@ -826,9 +941,9 @@ class Sound {
 
   function continueToNextLevel() {
     if (advanceTimeout) clearTimeout(advanceTimeout);
-    playing       = true;
+    playing        = true;
+    levelStartTime = Date.now();
     overlay.classList.add('hidden');
-    throwBtn.classList.remove('hidden');
     sfx._init();
     sfx.startBg();
     startLevel();
@@ -840,34 +955,35 @@ class Sound {
     if (advanceTimeout) clearTimeout(advanceTimeout);
     if (overlayMode === 'ADVANCE') {
       continueToNextLevel();
+    } else if (overlayMode === 'PAUSE') {
+      playing        = true;
+      levelStartTime = Date.now();
+      overlay.classList.add('hidden');
+      sfx._init();
+      sfx.startBg();
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(loop);
     } else {
       startGame();
     }
   }
 
-  /* ── Audio Button Handler ────────────────────────────────────────── */
-  const audioBtn  = document.getElementById('audioBtn');
-  const audioIcon = document.getElementById('audioIcon');
-  if (audioBtn) {
-    audioBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      sfx.muted = !sfx.muted;
-      if (sfx.muted) {
-        sfx.stopBg();
-        if (audioIcon) audioIcon.textContent = '🔇';
-      } else {
-        if (playing) sfx.startBg();
-        if (audioIcon) audioIcon.textContent = '🔊';
-      }
-    });
-  }
-
-  /* ── Events ─────────────────────────────────────────────────────── */
-  throwBtn.addEventListener('pointerdown', e => {
-    e.preventDefault();
-    doThrow();
+  /* ── Tab Visibility Pause Handler ──────────────────────────────────── */
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && playing) {
+      playing = false;
+      sfx.stopBg();
+      if (raf) { cancelAnimationFrame(raf); raf = null; }
+      overlayMode = 'PAUSE';
+      overlayEmoji.textContent = '⏸️';
+      overlayTitle.textContent = 'Game Paused';
+      overlaySub.textContent   = 'Tap play to continue!';
+      playBtn.textContent      = 'RESUME ▶️';
+      overlay.classList.remove('hidden');
+    }
   });
 
+  /* ── Events ─────────────────────────────────────────────────────── */
   canvas.addEventListener('pointerdown', () => {
     if (playing) doThrow();
   });
@@ -899,5 +1015,4 @@ class Sound {
   overlaySub.textContent   = 'Throw knives on the spinning wheel!';
   playBtn.textContent      = 'START! 🎮';
   overlay.classList.remove('hidden');
-  throwBtn.classList.add('hidden');
 })();
