@@ -6,119 +6,119 @@
   user-select: none;
 }
 
-body {
+html, body {
   margin: 0;
-  min-height: 100dvh;
-  background: linear-gradient(160deg, #fff6e3 0%, #ffe0f5 50%, #e3f0ff 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background: #0f172a;
   font-family: 'Nunito', 'Fredoka One', sans-serif;
 }
 
-.page {
-  width: 100%;
-  max-width: 440px;
-  min-height: 100dvh;
+/* ── Fullscreen Playfield Canvas ──────────── */
+#arena {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  display: block;
+  touch-action: none;
+  background: linear-gradient(160deg, #1e1b4b 0%, #31103f 50%, #0f172a 100%);
+}
+
+/* ── Minimalist Floating Top HUD Pill for Points ── */
+.hud-bar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.score-pill {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  padding: 8px 18px;
+  border-radius: 50px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255, 255, 255, 0.35);
+  font-family: 'Fredoka One', cursive;
+  font-size: 15px;
+  color: #1e1b4b;
+}
+
+.pill-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pill-item b {
+  color: #e84393;
+  font-size: 18px;
+}
+
+.pill-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.audio-btn {
+  pointer-events: auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
-}
-
-.card {
-  width: 100%;
-  background: #ffffff;
-  border-radius: 32px;
-  padding: 18px 16px 16px;
-  box-shadow: 0 8px 0 #f0c4de, 0 16px 40px rgba(200, 100, 160, 0.15);
-  border: 3px solid #ffd6ef;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  position: relative;
-}
-
-/* ── Title ─────────────────────────────── */
-.title-row {
-  text-align: center;
-}
-
-.title {
-  font-family: 'Fredoka One', cursive;
-  font-size: clamp(28px, 8vw, 44px);
-  color: #e84393;
-  line-height: 1;
-  letter-spacing: 0.5px;
-  text-shadow: 0 3px 0 rgba(232, 67, 147, 0.18);
-}
-
-.subtitle {
-  font-size: 13px;
-  font-weight: 700;
-  color: #b070a0;
-  margin-top: 3px;
-}
-
-/* ── Stats ─────────────────────────────── */
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.stat-box {
-  border-radius: 18px;
-  padding: 10px 6px 8px;
-  text-align: center;
-}
-
-.stat-val {
-  font-family: 'Fredoka One', cursive;
-  font-size: clamp(24px, 7vw, 34px);
-  line-height: 1;
+  font-size: 18px;
   transition: transform 0.15s;
 }
+.audio-btn:active { transform: scale(0.92); }
 
-.stat-lbl {
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 1.2px;
-  margin-top: 2px;
-  opacity: 0.75;
+/* ── Tiny Floating Throw Button (Bottom Center) ── */
+.throw-btn {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 10px 28px;
+  min-height: 44px;
+  border: none;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #f472b6 0%, #e84393 100%);
+  color: #fff;
+  font-family: 'Fredoka One', cursive;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(232, 67, 147, 0.4), 0 3px 0 #c0277a;
+  transition: transform 0.1s, box-shadow 0.1s;
 }
+.throw-btn:active { transform: translateX(-50%) translateY(2px); box-shadow: 0 1px 0 #c0277a; }
 
-.score-box { background: #fff0f8; border: 2.5px solid #f9b8df; }
-.score-box .stat-val { color: #e84393; }
-.score-box .stat-lbl { color: #e84393; }
-
-.level-box { background: #fffbe6; border: 2.5px solid #ffe082; }
-.level-box .stat-val { color: #f59e0b; }
-.level-box .stat-lbl { color: #f59e0b; }
-
-.best-box  { background: #f0f9ff; border: 2.5px solid #bae6fd; }
-.best-box  .stat-val { color: #0ea5e9; }
-.best-box  .stat-lbl { color: #0ea5e9; }
-
-/* ── Canvas ────────────────────────────── */
-#arena {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  border-radius: 24px;
-  background: linear-gradient(145deg, #fef9ff 0%, #f0f8ff 100%);
-  border: 2.5px solid #e8d0f8;
-  display: block;
-  touch-action: none;
-  box-shadow: inset 0 4px 14px rgba(200, 150, 220, 0.1);
-}
-
-/* ── Overlay ───────────────────────────── */
+/* ── Message Overlay ───────────────────── */
 .overlay {
   position: absolute;
   inset: 0;
-  border-radius: 32px;
-  background: rgba(255, 240, 255, 0.88);
-  backdrop-filter: blur(6px);
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -128,22 +128,23 @@ body {
 .overlay-box {
   text-align: center;
   padding: 28px 24px;
-  background: #fff;
-  border-radius: 24px;
+  background: #ffffff;
+  border-radius: 28px;
   border: 3px solid #f9b8df;
-  box-shadow: 0 8px 30px rgba(232, 67, 147, 0.15);
-  max-width: 78%;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  max-width: 320px;
+  width: 85%;
 }
 
 .overlay-emoji {
-  font-size: 52px;
+  font-size: 50px;
   line-height: 1;
   margin-bottom: 6px;
 }
 
 .overlay-title {
   font-family: 'Fredoka One', cursive;
-  font-size: clamp(24px, 6vw, 34px);
+  font-size: 28px;
   color: #e84393;
   line-height: 1;
   margin-bottom: 6px;
@@ -152,7 +153,7 @@ body {
 .overlay-sub {
   font-size: 14px;
   font-weight: 700;
-  color: #b070a0;
+  color: #64748b;
   margin-bottom: 18px;
 }
 
@@ -163,37 +164,12 @@ body {
   border-radius: 16px;
   padding: 12px 32px;
   font-family: 'Fredoka One', cursive;
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
-  box-shadow: 0 5px 0 #c0277a;
-  transition: all 0.12s;
+  box-shadow: 0 4px 0 #c0277a;
+  transition: transform 0.12s;
   display: inline-block;
 }
-.play-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #c0277a; }
-
-/* ── Throw Button ──────────────────────── */
-.throw-btn {
-  width: 100%;
-  min-height: 62px;
-  border: none;
-  border-radius: 20px;
-  background: linear-gradient(135deg, #f472b6 0%, #e84393 100%);
-  color: #fff;
-  font-family: 'Fredoka One', cursive;
-  font-size: 24px;
-  cursor: pointer;
-  box-shadow: 0 6px 0 #c0277a, 0 10px 24px rgba(232,67,147,0.28);
-  transition: all 0.12s;
-  letter-spacing: 0.5px;
-}
-.throw-btn:hover { background: linear-gradient(135deg, #f78dc0 0%, #f0569d 100%); }
-.throw-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #c0277a; }
+.play-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #c0277a; }
 
 .hidden { display: none !important; }
-
-/* ── Responsive ────────────────────────── */
-@media (max-height: 700px) {
-  .card { gap: 8px; padding: 14px 12px 12px; }
-  .throw-btn { min-height: 52px; font-size: 20px; }
-  .title { font-size: 28px; }
-}

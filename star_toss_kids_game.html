@@ -6,43 +6,41 @@
   <title>Knife Hit - Blade Thrower</title>
   <meta name="description" content="Throw knives at the spinning log without hitting other knives. How many can you land?">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="game" id="gameRoot">
-    <header class="header-bar">
-      <div class="title-group">
-        <div class="title">🔪 Knife Hit</div>
-        <div class="subtitle">Throw blades — don't hit other knives!</div>
-      </div>
-      <button class="audio-btn" id="audioBtn" title="Toggle Sound" aria-label="Toggle Sound">
-        <span id="audioIcon">🔊</span>
-      </button>
-    </header>
-    <div class="stats-grid">
-      <div class="stat">
-        <b id="score">0</b>
-        <span>SCORE</span>
-      </div>
-      <div class="stat level-stat">
-        <b id="level">1</b>
-        <span>LEVEL</span>
-      </div>
-      <div class="stat knives-stat">
-        <b id="knivesLeft">5</b>
-        <span>KNIVES</span>
-      </div>
+
+  <!-- Fullscreen Game Canvas -->
+  <canvas id="arena"></canvas>
+
+  <!-- Minimalist Floating Top HUD Pill for Points -->
+  <div class="hud-bar">
+    <div class="score-pill">
+      <span class="pill-item">🏆 <b id="score">0</b></span>
+      <span class="pill-divider"></span>
+      <span class="pill-item">LVL <b id="level">1</b></span>
+      <span class="pill-divider"></span>
+      <span class="pill-item">BEST <b id="best">0</b></span>
     </div>
-    <canvas id="arena" aria-label="Knife Hit game arena"></canvas>
-    <div class="message hidden" id="message">
-      <h2 id="msgTitle">Ready? 🔪</h2>
-      <p id="msgBody">Tap or press Space to throw!</p>
-      <button class="btn again-btn hidden" id="again">PLAY AGAIN ⚔️</button>
+    <button class="audio-btn" id="audioBtn" title="Toggle Sound" aria-label="Toggle Sound">
+      <span id="audioIcon">🔊</span>
+    </button>
+  </div>
+
+  <!-- Message Overlay (Start / Level Advance / Game Over) -->
+  <div class="overlay hidden" id="overlay">
+    <div class="overlay-box">
+      <div class="overlay-emoji" id="overlayEmoji">🔪</div>
+      <div class="overlay-title" id="overlayTitle">Knife Hit!</div>
+      <div class="overlay-sub"  id="overlaySub">Throw blades — don't hit other knives!</div>
+      <button class="play-btn" id="playBtn">START! 🎮</button>
     </div>
-    <div class="controls">
-      <button class="btn throw-btn" id="throw">🔪 THROW KNIFE</button>
-    </div>
-  </main>
+  </div>
+
+  <!-- Tiny Floating Throw Button at Bottom -->
+  <button class="throw-btn" id="throwBtn">🔪 THROW</button>
+
   <script src="script.js"></script>
 </body>
 </html>

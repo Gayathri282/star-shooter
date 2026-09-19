@@ -4,55 +4,43 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Knife Toss! 🔪</title>
-  <meta name="description" content="Throw knives onto the spinning wheel without hitting the others!">
+  <meta name="description" content="Throw knives onto the spinning wheel without hitting others!">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="page">
 
-    <div class="card">
-      <!-- Title -->
-      <div class="title-row">
-        <div class="title">🔪 Knife Toss!</div>
-        <div class="subtitle">Stick knives on the wheel — don't crash!</div>
-      </div>
+  <!-- Fullscreen Game Canvas -->
+  <canvas id="arena"></canvas>
 
-      <!-- Stats -->
-      <div class="stats-row">
-        <div class="stat-box score-box">
-          <div class="stat-val" id="score">0</div>
-          <div class="stat-lbl">SCORE</div>
-        </div>
-        <div class="stat-box level-box">
-          <div class="stat-val" id="level">1</div>
-          <div class="stat-lbl">LEVEL</div>
-        </div>
-        <div class="stat-box best-box">
-          <div class="stat-val" id="best">0</div>
-          <div class="stat-lbl">BEST</div>
-        </div>
-      </div>
-
-      <!-- Game Canvas -->
-      <canvas id="arena"></canvas>
-
-      <!-- Message overlay -->
-      <div class="overlay hidden" id="overlay">
-        <div class="overlay-box">
-          <div class="overlay-emoji" id="overlayEmoji">🎉</div>
-          <div class="overlay-title" id="overlayTitle">Ready!</div>
-          <div class="overlay-sub"  id="overlaySub">Tap to start!</div>
-          <button class="play-btn" id="playBtn">PLAY! 🎮</button>
-        </div>
-      </div>
-
-      <!-- Throw button -->
-      <button class="throw-btn" id="throwBtn">🔪 THROW!</button>
+  <!-- Minimalist Floating Top HUD Pill for Points -->
+  <div class="hud-bar">
+    <div class="score-pill">
+      <span class="pill-item">🏆 <b id="score">0</b></span>
+      <span class="pill-divider"></span>
+      <span class="pill-item">LVL <b id="level">1</b></span>
+      <span class="pill-divider"></span>
+      <span class="pill-item">BEST <b id="best">0</b></span>
     </div>
-
+    <button class="audio-btn" id="audioBtn" title="Toggle Sound" aria-label="Toggle Sound">
+      <span id="audioIcon">🔊</span>
+    </button>
   </div>
+
+  <!-- Message Overlay (Start / Level Advance / Game Over) -->
+  <div class="overlay hidden" id="overlay">
+    <div class="overlay-box">
+      <div class="overlay-emoji" id="overlayEmoji">🔪</div>
+      <div class="overlay-title" id="overlayTitle">Knife Toss!</div>
+      <div class="overlay-sub"  id="overlaySub">Throw knives on the spinning wheel!</div>
+      <button class="play-btn" id="playBtn">START! 🎮</button>
+    </div>
+  </div>
+
+  <!-- Tiny Floating Throw Button at Bottom -->
+  <button class="throw-btn" id="throwBtn">🔪 THROW</button>
+
   <script src="script.js"></script>
 </body>
 </html>

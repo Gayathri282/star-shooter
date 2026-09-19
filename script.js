@@ -191,6 +191,8 @@ class Sound {
   let playing       = false;
   let raf           = null;
   let S             = 0;
+  let W             = 0;
+  let H             = 0;
   let dpr           = 1;
   let knivesLeft    = 0;      // knives remaining to throw this level
   let levelCfg      = null;   // current level config
@@ -203,19 +205,20 @@ class Sound {
   let overlayMode       = 'START';// 'START', 'ADVANCE', or 'FAIL'
   let advanceTimeout    = null;   // timer for level advance transition
 
-  /* ── Resize (square canvas) ─────────────────────────────────────── */
+  /* ── Resize (fullscreen canvas) ─────────────────────────────────── */
   function resize() {
-    const rect = canvas.getBoundingClientRect();
     dpr = window.devicePixelRatio || 1;
-    S   = Math.round(rect.width);
-    canvas.width  = S * dpr;
-    canvas.height = S * dpr;
+    W   = window.innerWidth;
+    H   = window.innerHeight;
+    S   = Math.min(W, H);
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
     C.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function wheelR() { return S * 0.28; }
-  function cx()     { return S / 2; }
-  function cy()     { return S * 0.40; }    // wheel a bit above centre
+  function wheelR() { return Math.min(W * 0.32, H * 0.22, 135); }
+  function cx()     { return W / 2; }
+  function cy()     { return H * 0.36; }    // wheel centered in upper section
 
   /* ── Level init ─────────────────────────────────────────────────── */
   function startLevel() {
@@ -225,7 +228,7 @@ class Sound {
     flyingActive = false;
     flyDone      = true;
     busy         = false;
-    flyingY      = S - 30;
+    flyingY      = H - 75;
     frameCount   = 0;
     knivesLeft   = levelCfg.knives;
 
@@ -404,7 +407,7 @@ class Sound {
 
     const r       = wheelR();
     const targetY = cy() + r;
-    const startY  = S - 30;
+    const startY  = H - 75;
 
     // Check if bottom 90deg hit zone is currently safe or blocked by a stuck knife
     const isBlocked = stuckAngles.some(local => {
@@ -518,7 +521,7 @@ class Sound {
     if (remaining > 0) {
       const gap    = 18;
       const startX = cx() - ((remaining - 1) * gap) / 2;
-      const y      = S - 20;
+      const y      = H - 24;
       for (let i = 0; i < remaining; i++) {
         C.save();
         C.translate(startX + i * gap, y);
@@ -533,14 +536,14 @@ class Sound {
       const stuck   = stuckAngles.length;
       const minPass = levelCfg.minToPass;
       C.save();
-      C.font      = `bold ${Math.round(S * 0.032)}px Nunito, sans-serif`;
+      C.font      = `bold ${Math.round(Math.min(S * 0.038, 16))}px Nunito, sans-serif`;
       C.textAlign = 'center';
       C.fillStyle = stuck >= minPass ? '#22c55e' : '#f59e0b';
       C.fillText(
         stuck >= minPass
           ? `✓ ${stuck}/${minPass} – Keep going!`
           : `Need ${minPass - stuck} more to advance`,
-        cx(), S - 44
+        cx(), H - 48
       );
       C.restore();
     }
@@ -548,12 +551,12 @@ class Sound {
     // ── Notice when spinner is waiting for 1st hit to start ──
     if (waitingForFirstHit && stuckAngles.length === 0) {
       C.save();
-      C.font        = `900 ${Math.round(S * 0.034)}px Fredoka One, Nunito, sans-serif`;
+      C.font        = `900 ${Math.round(Math.min(S * 0.04, 18))}px Fredoka One, Nunito, sans-serif`;
       C.textAlign   = 'center';
       C.fillStyle   = '#e84393';
       C.shadowColor = 'rgba(232, 67, 147, 0.4)';
       C.shadowBlur  = 10;
-      C.fillText('🎯 Stab 1st knife to start spinning!', cx(), cy() - wheelR() - 14);
+      C.fillText('🎯 Stab 1st knife to start spinning!', cx(), cy() - wheelR() - 16);
       C.restore();
     }
 
@@ -578,7 +581,7 @@ class Sound {
     C.save();
     C.globalAlpha = (clashFlash / 30) * 0.32;
     C.fillStyle   = `hsl(${hue}, 100%, 62%)`;
-    C.fillRect(0, 0, S, S);
+    C.fillRect(0, 0, W, H);
     C.restore();
     clashFlash--;
   }
@@ -591,14 +594,14 @@ class Sound {
     busy         = true;
     flyDone      = false;
     flyingActive = true;
-    flyingY      = S - 30;
+    flyingY      = H - 75;
     knivesLeft--;
     sfx.throw();
   }
 
   function updateFlying() {
     if (!flyingActive) return;
-    flyingY -= S * 0.025;
+    flyingY -= Math.max(12, H * 0.022);
 
     const r    = wheelR();
     const dist = Math.abs(flyingY - cy());
@@ -735,7 +738,7 @@ class Sound {
 
   /* ── Draw frame ─────────────────────────────────────────────────── */
   function draw() {
-    C.clearRect(0, 0, S, S);
+    C.clearRect(0, 0, W, H);
 
     // Rainbow flash effect on clash
     drawClashFlash();
