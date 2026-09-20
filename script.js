@@ -11,20 +11,25 @@
 
 /* ─── Level Config ─────────────────────────────────────────────────── */
 const LEVELS = [
-  { knives: 6,  minToPass: 3, baseSpeed: 1.60, wait1st: false },   // Level 1: Fast start
-  { knives: 7,  minToPass: 4, baseSpeed: 2.30, wait1st: true  },   // Level 2: Super fast + Waits for 1st knife
-  { knives: 8,  minToPass: 5, baseSpeed: 3.10, wait1st: false },   // Level 3: Extra fast
-  { knives: 9,  minToPass: 6, baseSpeed: 4.00, wait1st: true  },   // Level 4: Lightning fast
-  { knives: 10, minToPass: 7, baseSpeed: 5.00, wait1st: true  },   // Level 5: Turbo fast
+  { knives: 6,  minToPass: 3, baseSpeed: 0.75, wait1st: false },   // Level 1: Gentle & comfortable
+  { knives: 6,  minToPass: 4, baseSpeed: 0.90, wait1st: true  },   // Level 2: Easy pace
+  { knives: 7,  minToPass: 4, baseSpeed: 1.05, wait1st: false },   // Level 3: Soft step-up
+  { knives: 7,  minToPass: 5, baseSpeed: 1.20, wait1st: true  },   // Level 4: Moderate pace
+  { knives: 8,  minToPass: 5, baseSpeed: 1.35, wait1st: false },   // Level 5: Comfortable medium
+  { knives: 8,  minToPass: 6, baseSpeed: 1.50, wait1st: true  },   // Level 6: Smooth pace
+  { knives: 9,  minToPass: 6, baseSpeed: 1.65, wait1st: false },   // Level 7: Brisk pace
+  { knives: 9,  minToPass: 7, baseSpeed: 1.80, wait1st: true  },   // Level 8: Fast
+  { knives: 10, minToPass: 7, baseSpeed: 2.00, wait1st: false },   // Level 9: Very fast
+  { knives: 10, minToPass: 8, baseSpeed: 2.20, wait1st: true  },   // Level 10: Top pace
 ];
 function getLevelCfg(lvl) {
   if (lvl <= LEVELS.length) return LEVELS[lvl - 1];
   const extra = lvl - LEVELS.length;
   return {
-    knives: 10 + extra,
-    minToPass: 7 + extra,
-    baseSpeed: 5.00 + extra * 0.85,
-    wait1st: lvl % 2 === 0 || lvl % 3 === 0
+    knives: 10 + Math.floor(extra / 2),
+    minToPass: 8 + Math.floor(extra / 2),
+    baseSpeed: 2.20 + extra * 0.15,
+    wait1st: lvl % 2 === 0
   };
 }
 
@@ -194,7 +199,7 @@ class Sound {
   const KNIFE_BLADE   = 28;
   const KNIFE_W       = 7;
   // Speed ramp: wheel speeds up gradually within a level (fraction per frame)
-  const SPEED_RAMP    = 0.00030;
+  const SPEED_RAMP    = 0.00005;
 
   /* ── State ──────────────────────────────────────────────────────── */
   let score, level, best, stuckAngles, wheelAngle, wheelSpeed;
@@ -216,6 +221,8 @@ class Sound {
   let waitingForFirstHit= false;  // when true, wheel waits for 1st knife hit to start spinning
   let overlayMode       = 'START';// 'START', 'ADVANCE', or 'FAIL'
   let advanceTimeout    = null;   // timer for level advance transition
+  let levelPending      = false;  // prevents duplicate level advance triggers
+  let levelPendingTimeout = null; // timeout reference for level completion
 
   /* ── Resize (fullscreen canvas) ─────────────────────────────────── */
   function resize() {
@@ -234,6 +241,9 @@ class Sound {
 
   /* ── Level init ─────────────────────────────────────────────────── */
   function startLevel() {
+    if (advanceTimeout) { clearTimeout(advanceTimeout); advanceTimeout = null; }
+    if (levelPendingTimeout) { clearTimeout(levelPendingTimeout); levelPendingTimeout = null; }
+    levelPending = false;
     levelCfg     = getLevelCfg(level);
     stuckAngles  = [];
     wheelAngle   = 0;
@@ -693,7 +703,7 @@ class Sound {
   /* ── Game Logic ─────────────────────────────────────────────────── */
   function doThrow() {
     sfx._init(); sfx.startBg();
-    if (!playing || busy || !flyDone) return;
+    if (!playing || busy || !flyDone || levelPending) return;
     if (knivesLeft <= 0) return;
     busy         = true;
     flyDone      = false;
@@ -728,6 +738,8 @@ class Sound {
         // ── Hit another knife! ──────────────────────────────────────
         shakeFrames = 22;
         clashFlash  = 30;  // trigger rainbow flash
+        levelPending = true;
+        busy = true;
 
         // Burst at the struck knife's world position
         const hitRad = (stuckAngles[clashIdx] + wheelAngle) * Math.PI / 180;
@@ -743,9 +755,12 @@ class Sound {
 
         // Even if we clashed, check if we already qualified — reward player
         const qualified = stuckAngles.length >= (levelCfg ? levelCfg.minToPass : 3);
-        setTimeout(() => qualified ? advanceLevel() : showGameOver(), 700);
+        if (levelPendingTimeout) clearTimeout(levelPendingTimeout);
+        levelPendingTimeout = setTimeout(() => {
+          levelPendingTimeout = null;
+          qualified ? advanceLevel() : showGameOver();
+        }, 700);
         flyDone = true;
-        busy    = false;
 
       } else {
         // ── Knife sticks to circumference! ──────────────────────────
@@ -772,15 +787,20 @@ class Sound {
         const noLeft  = knivesLeft <= 0;
 
         if (allDone || noLeft) {
+          levelPending = true;
+          busy = true;
           // No more knives available — evaluate result
-          if (stuckAngles.length >= cfg.minToPass) {
-            setTimeout(advanceLevel, 600);
-          } else {
-            sfx.levelFail();
-            setTimeout(showLevelFail, 600);
-          }
+          if (levelPendingTimeout) clearTimeout(levelPendingTimeout);
+          levelPendingTimeout = setTimeout(() => {
+            levelPendingTimeout = null;
+            if (stuckAngles.length >= cfg.minToPass) {
+              advanceLevel();
+            } else {
+              sfx.levelFail();
+              showLevelFail();
+            }
+          }, 600);
           flyDone = true;
-          busy    = false;
         } else {
           flyingY = S - 30;
           flyDone = true;
@@ -791,6 +811,11 @@ class Sound {
   }
 
   function advanceLevel() {
+    if (overlayMode === 'ADVANCE' && !overlay.classList.contains('hidden')) return;
+    if (levelPendingTimeout) { clearTimeout(levelPendingTimeout); levelPendingTimeout = null; }
+    levelPending = false;
+    busy = false;
+
     level++;
     // Pause the game state and stop background music while closing / overlay screen is shown
     playing = false;
@@ -911,7 +936,7 @@ class Sound {
     if (!waitingForFirstHit) {
       const sign    = wheelSpeed >= 0 ? 1 : -1;
       const cfg     = levelCfg || getLevelCfg(level);
-      const maxSpd  = Math.abs(cfg.baseSpeed) * 2.5;  // cap at 2.5× base
+      const maxSpd  = Math.abs(cfg.baseSpeed) * 1.5;  // cap at 1.5× base
       const ramped  = Math.abs(cfg.baseSpeed) + frameCount * SPEED_RAMP * Math.abs(cfg.baseSpeed);
       wheelSpeed    = sign * Math.min(ramped, maxSpd);
     } else {
@@ -940,7 +965,10 @@ class Sound {
   }
 
   function continueToNextLevel() {
-    if (advanceTimeout) clearTimeout(advanceTimeout);
+    if (advanceTimeout) { clearTimeout(advanceTimeout); advanceTimeout = null; }
+    if (levelPendingTimeout) { clearTimeout(levelPendingTimeout); levelPendingTimeout = null; }
+    levelPending   = false;
+    busy           = false;
     playing        = true;
     levelStartTime = Date.now();
     overlay.classList.add('hidden');
