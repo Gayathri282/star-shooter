@@ -11,16 +11,16 @@
 
 /* ─── Level Config ─────────────────────────────────────────────────── */
 const LEVELS = [
-  { knives: 6,  minToPass: 3, baseSpeed: 1.80, wait1st: false },   // Level 1: Speed starts at Level 8 baseline (1.80)!
-  { knives: 6,  minToPass: 4, baseSpeed: 1.95, wait1st: true  },   // Level 2: Fast & dynamic
-  { knives: 7,  minToPass: 4, baseSpeed: 2.10, wait1st: false },   // Level 3: Faster
-  { knives: 7,  minToPass: 5, baseSpeed: 2.25, wait1st: true  },   // Level 4: Lightning pace
-  { knives: 8,  minToPass: 5, baseSpeed: 2.40, wait1st: false },   // Level 5: High speed
-  { knives: 8,  minToPass: 6, baseSpeed: 2.55, wait1st: true  },   // Level 6: Ultra fast
-  { knives: 9,  minToPass: 6, baseSpeed: 2.70, wait1st: false },   // Level 7: Extreme speed
-  { knives: 9,  minToPass: 7, baseSpeed: 2.85, wait1st: true  },   // Level 8: Hyper speed
-  { knives: 10, minToPass: 7, baseSpeed: 3.00, wait1st: false },   // Level 9: Master speed
-  { knives: 10, minToPass: 8, baseSpeed: 3.20, wait1st: true  },   // Level 10: Insane speed
+  { knives: 6,  minToPass: 3, baseSpeed: 0.85, wait1st: false },   // Level 1: Smooth, comfortable start
+  { knives: 6,  minToPass: 4, baseSpeed: 1.00, wait1st: true  },   // Level 2: Gentle step up
+  { knives: 7,  minToPass: 4, baseSpeed: 1.15, wait1st: false },   // Level 3: Moderate pace
+  { knives: 7,  minToPass: 5, baseSpeed: 1.30, wait1st: true  },   // Level 4: Steady pace
+  { knives: 8,  minToPass: 5, baseSpeed: 1.45, wait1st: false },   // Level 5: Brisk pace
+  { knives: 8,  minToPass: 6, baseSpeed: 1.60, wait1st: true  },   // Level 6: Fast pace
+  { knives: 9,  minToPass: 6, baseSpeed: 1.75, wait1st: false },   // Level 7: High speed (no obstacles)
+  { knives: 9,  minToPass: 7, baseSpeed: 1.90, wait1st: true  },   // Level 8: 1 Obstacle introduced!
+  { knives: 10, minToPass: 7, baseSpeed: 2.05, wait1st: false },   // Level 9: 2 Obstacles!
+  { knives: 10, minToPass: 8, baseSpeed: 2.20, wait1st: true  },   // Level 10: 3 Obstacles (Max)!
 ];
 function getLevelCfg(lvl) {
   if (lvl <= LEVELS.length) return LEVELS[lvl - 1];
@@ -28,7 +28,7 @@ function getLevelCfg(lvl) {
   return {
     knives: 10 + Math.floor(extra / 2),
     minToPass: 8 + Math.floor(extra / 2),
-    baseSpeed: 3.20 + extra * 0.20,
+    baseSpeed: 2.20 + extra * 0.15,
     wait1st: lvl % 2 === 0
   };
 }
@@ -249,11 +249,32 @@ class Sound {
   /* ── Obstacle Generator ─────────────────────────────────────────── */
   function generateObstacles(lvl) {
     const list = [];
-    // Number of obstacles scaling with level (1 for L1, 2 for L2, up to 4 for L5+)
-    let count = Math.min(1 + Math.floor((lvl - 1) / 1.5), 4);
+
+    // Levels 1 to 7 have NO obstacles (smooth speed buildup)
+    if (lvl < 8) {
+      // Optional sliceable bonus apple target (+2 bonus points)
+      if (lvl >= 3 && Math.random() > 0.35) {
+        let appleAttempts = 0;
+        while (appleAttempts < 40) {
+          appleAttempts++;
+          const angle = Math.floor(Math.random() * 360);
+          let distFromBottom = Math.abs(angle - 90) % 360;
+          if (distFromBottom > 180) distFromBottom = 360 - distFromBottom;
+          if (distFromBottom < 30) continue;
+
+          list.push({ angle, type: 'apple' });
+          break;
+        }
+      }
+      return list;
+    }
+
+    // From Level 8+, obstacles are added one by one up to a max of 3:
+    // Level 8 = 1 obstacle, Level 9 = 2 obstacles, Level 10+ = 3 obstacles max
+    const count = Math.min(lvl - 7, 3);
     const types = ['stone', 'bomb', 'shield'];
     
-    const safeGap = 34; // minimum degrees between obstacles
+    const safeGap = 36; // minimum degrees between obstacles for realistic winnability
     let attempts = 0;
     
     while (list.length < count && attempts < 100) {
@@ -278,7 +299,7 @@ class Sound {
     }
 
     // Bonus sliceable apple target (+2 points bonus)
-    if (lvl >= 2 && Math.random() > 0.25) {
+    if (Math.random() > 0.3) {
       let appleAttempts = 0;
       while (appleAttempts < 40) {
         appleAttempts++;
@@ -1117,7 +1138,13 @@ class Sound {
     overlayMode = 'ADVANCE';
     overlayEmoji.textContent = '🎉';
     overlayTitle.textContent = `Level ${level}!`;
-    overlaySub.textContent   = `Speed up! Land ${getLevelCfg(level).minToPass}+ knives to pass`;
+    if (level === 8) {
+      overlaySub.textContent = `⚠️ Watch out! Obstacles added to the spinner!`;
+    } else if (level > 8) {
+      overlaySub.textContent = `Obstacles active! Land ${getLevelCfg(level).minToPass}+ knives to pass`;
+    } else {
+      overlaySub.textContent = `Speed up! Land ${getLevelCfg(level).minToPass}+ knives to pass`;
+    }
     playBtn.textContent      = 'GO! 🚀';
     overlay.classList.remove('hidden');
 
