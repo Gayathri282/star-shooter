@@ -11,16 +11,16 @@
 
 /* ─── Level Config ─────────────────────────────────────────────────── */
 const LEVELS = [
-  { knives: 6,  minToPass: 3, baseSpeed: 0.75, wait1st: false },   // Level 1: Gentle & comfortable
-  { knives: 6,  minToPass: 4, baseSpeed: 0.90, wait1st: true  },   // Level 2: Easy pace
-  { knives: 7,  minToPass: 4, baseSpeed: 1.05, wait1st: false },   // Level 3: Soft step-up
-  { knives: 7,  minToPass: 5, baseSpeed: 1.20, wait1st: true  },   // Level 4: Moderate pace
-  { knives: 8,  minToPass: 5, baseSpeed: 1.35, wait1st: false },   // Level 5: Comfortable medium
-  { knives: 8,  minToPass: 6, baseSpeed: 1.50, wait1st: true  },   // Level 6: Smooth pace
-  { knives: 9,  minToPass: 6, baseSpeed: 1.65, wait1st: false },   // Level 7: Brisk pace
-  { knives: 9,  minToPass: 7, baseSpeed: 1.80, wait1st: true  },   // Level 8: Fast
-  { knives: 10, minToPass: 7, baseSpeed: 2.00, wait1st: false },   // Level 9: Very fast
-  { knives: 10, minToPass: 8, baseSpeed: 2.20, wait1st: true  },   // Level 10: Top pace
+  { knives: 6,  minToPass: 3, baseSpeed: 1.80, wait1st: false },   // Level 1: Speed starts at Level 8 baseline (1.80)!
+  { knives: 6,  minToPass: 4, baseSpeed: 1.95, wait1st: true  },   // Level 2: Fast & dynamic
+  { knives: 7,  minToPass: 4, baseSpeed: 2.10, wait1st: false },   // Level 3: Faster
+  { knives: 7,  minToPass: 5, baseSpeed: 2.25, wait1st: true  },   // Level 4: Lightning pace
+  { knives: 8,  minToPass: 5, baseSpeed: 2.40, wait1st: false },   // Level 5: High speed
+  { knives: 8,  minToPass: 6, baseSpeed: 2.55, wait1st: true  },   // Level 6: Ultra fast
+  { knives: 9,  minToPass: 6, baseSpeed: 2.70, wait1st: false },   // Level 7: Extreme speed
+  { knives: 9,  minToPass: 7, baseSpeed: 2.85, wait1st: true  },   // Level 8: Hyper speed
+  { knives: 10, minToPass: 7, baseSpeed: 3.00, wait1st: false },   // Level 9: Master speed
+  { knives: 10, minToPass: 8, baseSpeed: 3.20, wait1st: true  },   // Level 10: Insane speed
 ];
 function getLevelCfg(lvl) {
   if (lvl <= LEVELS.length) return LEVELS[lvl - 1];
@@ -28,7 +28,7 @@ function getLevelCfg(lvl) {
   return {
     knives: 10 + Math.floor(extra / 2),
     minToPass: 8 + Math.floor(extra / 2),
-    baseSpeed: 2.20 + extra * 0.15,
+    baseSpeed: 3.20 + extra * 0.20,
     wait1st: lvl % 2 === 0
   };
 }
@@ -95,6 +95,27 @@ class Sound {
     this._tone(784, 0.30, 'triangle', 0.12, null, 0.04);
     this._tone(440, 0.50, 'sine', 0.10, 100, 0.12);
     this._tone(1200, 0.18, 'sine', 0.13, 550, 0.32);
+  }
+
+  stoneHit() {
+    this._init();
+    // Heavy crunch sound on hitting rock obstacle
+    this._tone(120, 0.35, 'sawtooth', 0.28, 40);
+    this._tone(80, 0.40, 'square', 0.22, 30, 0.05);
+  }
+
+  bombHit() {
+    this._init();
+    // Low explosive boom + pitch dive on hitting bomb
+    this._tone(300, 0.50, 'sawtooth', 0.35, 30);
+    this._tone(150, 0.60, 'square', 0.30, 20, 0.04);
+  }
+
+  appleHit() {
+    this._init();
+    // Crisp slice chime for bonus apple
+    this._tone(1200, 0.12, 'sine', 0.22, 1600);
+    setTimeout(() => this._tone(1600, 0.15, 'triangle', 0.20), 40);
   }
 
   levelFail() {
@@ -203,6 +224,7 @@ class Sound {
 
   /* ── State ──────────────────────────────────────────────────────── */
   let score, level, best, stuckAngles, wheelAngle, wheelSpeed;
+  let obstacles         = [];     // pre-placed obstacles (stone, bomb, shield, apple)
   let flyingY, flyingActive, flyDone, busy;
   let playing       = false;
   let raf           = null;
@@ -223,6 +245,58 @@ class Sound {
   let advanceTimeout    = null;   // timer for level advance transition
   let levelPending      = false;  // prevents duplicate level advance triggers
   let levelPendingTimeout = null; // timeout reference for level completion
+
+  /* ── Obstacle Generator ─────────────────────────────────────────── */
+  function generateObstacles(lvl) {
+    const list = [];
+    // Number of obstacles scaling with level (1 for L1, 2 for L2, up to 4 for L5+)
+    let count = Math.min(1 + Math.floor((lvl - 1) / 1.5), 4);
+    const types = ['stone', 'bomb', 'shield'];
+    
+    const safeGap = 34; // minimum degrees between obstacles
+    let attempts = 0;
+    
+    while (list.length < count && attempts < 100) {
+      attempts++;
+      const angle = Math.floor(Math.random() * 360);
+      
+      // Avoid placing initial obstacles right at bottom 6 o'clock (90deg)
+      let distFromBottom = Math.abs(angle - 90) % 360;
+      if (distFromBottom > 180) distFromBottom = 360 - distFromBottom;
+      if (distFromBottom < 35) continue;
+
+      const tooClose = list.some(ob => {
+        let d = Math.abs(ob.angle - angle) % 360;
+        if (d > 180) d = 360 - d;
+        return d < safeGap;
+      });
+
+      if (!tooClose) {
+        const type = types[list.length % types.length];
+        list.push({ angle, type });
+      }
+    }
+
+    // Bonus sliceable apple target (+2 points bonus)
+    if (lvl >= 2 && Math.random() > 0.25) {
+      let appleAttempts = 0;
+      while (appleAttempts < 40) {
+        appleAttempts++;
+        const angle = Math.floor(Math.random() * 360);
+        const tooClose = list.some(ob => {
+          let d = Math.abs(ob.angle - angle) % 360;
+          if (d > 180) d = 360 - d;
+          return d < 24;
+        });
+        if (!tooClose) {
+          list.push({ angle, type: 'apple' });
+          break;
+        }
+      }
+    }
+
+    return list;
+  }
 
   /* ── Resize (fullscreen canvas) ─────────────────────────────────── */
   function resize() {
@@ -246,6 +320,7 @@ class Sound {
     levelPending = false;
     levelCfg     = getLevelCfg(level);
     stuckAngles  = [];
+    obstacles    = generateObstacles(level);
     wheelAngle   = 0;
     flyingActive = false;
     flyDone      = true;
@@ -273,6 +348,7 @@ class Sound {
     particles   = [];
     shakeFrames = 0;
     clashFlash  = 0;
+    obstacles   = [];
     scoreEl.textContent = '0';
     levelEl.textContent = '1';
     startLevel();
@@ -464,6 +540,140 @@ class Sound {
     C.restore();
   }
 
+  // Draw obstacles (stone, bomb, shield, apple) pre-placed on spinner wheel rim
+  function drawObstacles() {
+    const r = wheelR();
+    obstacles.forEach(ob => {
+      const worldDeg = (ob.angle + wheelAngle + 360) % 360;
+      const rad = worldDeg * Math.PI / 180;
+      const tx = cx() + Math.cos(rad) * r;
+      const ty = cy() + Math.sin(rad) * r;
+
+      C.save();
+      C.translate(tx, ty);
+      C.rotate(rad + Math.PI / 2); // orient outwards
+
+      if (ob.type === 'stone') {
+        // 🪨 Rugged Stone Rock Obstacle
+        C.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        C.shadowBlur = 6;
+
+        C.beginPath();
+        C.moveTo(-12, -8);
+        C.lineTo(-6, -16);
+        C.lineTo(8, -14);
+        C.lineTo(14, -6);
+        C.lineTo(10, 8);
+        C.lineTo(-8, 10);
+        C.closePath();
+
+        const sg = C.createLinearGradient(-12, -16, 14, 10);
+        sg.addColorStop(0, '#94a3b8');
+        sg.addColorStop(0.5, '#64748b');
+        sg.addColorStop(1, '#334155');
+        C.fillStyle = sg;
+        C.fill();
+        C.strokeStyle = '#1e293b';
+        C.lineWidth = 2;
+        C.stroke();
+
+        C.beginPath();
+        C.moveTo(-4, -10); C.lineTo(2, -2); C.lineTo(-2, 4);
+        C.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        C.lineWidth = 1.5;
+        C.stroke();
+
+      } else if (ob.type === 'bomb') {
+        // 💣 Naval Danger Bomb
+        C.shadowColor = 'rgba(239, 68, 68, 0.7)';
+        C.shadowBlur = 10;
+
+        C.beginPath();
+        C.arc(0, 0, 13, 0, Math.PI * 2);
+        const bg = C.createRadialGradient(-3, -3, 2, 0, 0, 13);
+        bg.addColorStop(0, '#475569');
+        bg.addColorStop(0.7, '#0f172a');
+        bg.addColorStop(1, '#000000');
+        C.fillStyle = bg;
+        C.fill();
+        C.strokeStyle = '#ef4444';
+        C.lineWidth = 2;
+        C.stroke();
+
+        C.fillStyle = '#ef4444';
+        C.font = '10px Fredoka One, sans-serif';
+        C.textAlign = 'center';
+        C.fillText('💀', 0, 4);
+
+        const sparkY = -15 + Math.sin(frameCount * 0.3) * 2;
+        C.beginPath();
+        C.arc(0, sparkY, 3, 0, Math.PI * 2);
+        C.fillStyle = frameCount % 6 < 3 ? '#ffe066' : '#ff4e4e';
+        C.fill();
+
+      } else if (ob.type === 'shield') {
+        // 🛡️ Iron Shield
+        C.shadowColor = 'rgba(148, 163, 184, 0.5)';
+        C.shadowBlur = 8;
+
+        C.beginPath();
+        C.moveTo(0, -14);
+        C.lineTo(12, -8);
+        C.lineTo(10, 8);
+        C.lineTo(0, 15);
+        C.lineTo(-10, 8);
+        C.lineTo(-12, -8);
+        C.closePath();
+
+        const shg = C.createLinearGradient(-12, -14, 12, 15);
+        shg.addColorStop(0, '#e2e8f0');
+        shg.addColorStop(0.5, '#94a3b8');
+        shg.addColorStop(1, '#475569');
+        C.fillStyle = shg;
+        C.fill();
+        C.strokeStyle = '#1e293b';
+        C.lineWidth = 2;
+        C.stroke();
+
+        [-5, 5].forEach(rx => {
+          C.beginPath();
+          C.arc(rx, -4, 1.5, 0, Math.PI * 2);
+          C.fillStyle = '#ffffff';
+          C.fill();
+        });
+
+      } else if (ob.type === 'apple') {
+        // 🍎 Sliceable Bonus Apple
+        const pulse = Math.sin(frameCount * 0.1) * 1.5;
+        C.shadowColor = 'rgba(239, 68, 68, 0.7)';
+        C.shadowBlur = 8 + pulse;
+
+        C.beginPath();
+        C.arc(0, 2, 11, 0, Math.PI * 2);
+        const ag = C.createRadialGradient(-3, -2, 2, 0, 2, 11);
+        ag.addColorStop(0, '#f87171');
+        ag.addColorStop(0.7, '#dc2626');
+        ag.addColorStop(1, '#991b1b');
+        C.fillStyle = ag;
+        C.fill();
+
+        C.beginPath();
+        C.ellipse(3, -9, 4, 2, Math.PI / 4, 0, Math.PI * 2);
+        C.fillStyle = '#22c55e';
+        C.fill();
+
+        C.beginPath();
+        C.moveTo(0, -6);
+        C.lineTo(-1, -11);
+        C.strokeStyle = '#78350f';
+        C.lineWidth = 2;
+        C.stroke();
+      }
+
+      C.restore();
+    });
+  }
+
   // Draw laser trajectory line & timing reticle so user knows where & when to throw (Active for first 10 seconds only)
   function drawAimingGuide() {
     if (!playing || flyingActive) return;
@@ -482,9 +692,15 @@ class Sound {
     const targetY = cy() + r;
     const startY  = H - 75;
 
-    // Check if bottom 90deg hit zone is currently safe or blocked by a stuck knife
+    // Check if bottom 90deg hit zone is currently safe or blocked by a stuck knife or obstacle
     const isBlocked = stuckAngles.some(local => {
       const world = (local + wheelAngle + 360) % 360;
+      let d = Math.abs(world - 90) % 360;
+      if (d > 180) d = 360 - d;
+      return d < SAFE_GAP_DEG + 2;
+    }) || obstacles.some(ob => {
+      if (ob.type === 'apple') return false;
+      const world = (ob.angle + wheelAngle + 360) % 360;
       let d = Math.abs(world - 90) % 360;
       if (d > 180) d = 360 - d;
       return d < SAFE_GAP_DEG + 2;
@@ -727,7 +943,80 @@ class Sound {
       const hitWorld = 90;  // bottom 6 o'clock hit position in canvas coordinates
       const localHit = ((hitWorld - wheelAngle) % 360 + 360) % 360;
 
-      // Check for clash with any knife already on the circumference
+      // 1. Check for collision with pre-placed obstacles (stone, bomb, shield, apple)
+      const obIdx = obstacles.findIndex(ob => {
+        let d = Math.abs(ob.angle - localHit) % 360;
+        if (d > 180) d = 360 - d;
+        return d < (ob.type === 'apple' ? 18 : SAFE_GAP_DEG + 3);
+      });
+
+      if (obIdx !== -1) {
+        const hitOb = obstacles[obIdx];
+        if (hitOb.type === 'apple') {
+          // 🍎 Sliced bonus apple!
+          sfx.appleHit();
+          score += 2;
+          scoreEl.textContent = score;
+          if (score > best) { best = score; bestEl.textContent = best; }
+
+          const rad = (hitOb.angle + wheelAngle) * Math.PI / 180;
+          burst(cx() + Math.cos(rad) * r, cy() + Math.sin(rad) * r, ['#ef4444', '#f87171', '#22c55e', '#ffe066'], 22);
+          obstacles.splice(obIdx, 1);
+
+          // Knife stabs into wheel at localHit
+          stuckAngles.push(localHit);
+          sfx.pointGain(stuckAngles.length);
+          burst(cx(), cy() + r, ['#ffd700','#ff69b4','#00e5ff'], 12);
+
+          const cfg     = getLevelCfg(level);
+          const allDone = stuckAngles.length >= cfg.knives;
+          const noLeft  = knivesLeft <= 0;
+
+          if (allDone || noLeft) {
+            levelPending = true;
+            busy = true;
+            if (levelPendingTimeout) clearTimeout(levelPendingTimeout);
+            levelPendingTimeout = setTimeout(() => {
+              levelPendingTimeout = null;
+              stuckAngles.length >= cfg.minToPass ? advanceLevel() : showLevelFail();
+            }, 600);
+            flyDone = true;
+          } else {
+            flyingY = S - 30;
+            flyDone = true;
+            busy    = false;
+          }
+          return;
+        } else {
+          // 🪨 💣 🛡️ Hit a dangerous obstacle! GAME OVER!
+          shakeFrames  = 26;
+          clashFlash   = 35;
+          levelPending = true;
+          busy         = true;
+
+          const rad  = (hitOb.angle + wheelAngle) * Math.PI / 180;
+          const hitX = cx() + Math.cos(rad) * r;
+          const hitY = cy() + Math.sin(rad) * r;
+
+          if (hitOb.type === 'bomb') {
+            sfx.bombHit();
+            burst(hitX, hitY, ['#ef4444', '#f97316', '#eab308', '#000000'], 35);
+          } else {
+            sfx.stoneHit();
+            burst(hitX, hitY, ['#94a3b8', '#64748b', '#334155', '#ffe066'], 28);
+          }
+
+          if (levelPendingTimeout) clearTimeout(levelPendingTimeout);
+          levelPendingTimeout = setTimeout(() => {
+            levelPendingTimeout = null;
+            showObstacleGameOver(hitOb.type);
+          }, 700);
+          flyDone = true;
+          return;
+        }
+      }
+
+      // 2. Check for clash with any knife already on the circumference
       const clashIdx = stuckAngles.findIndex(a => {
         let d = Math.abs(a - localHit) % 360;
         if (d > 180) d = 360 - d;
@@ -854,6 +1143,30 @@ class Sound {
     overlay.classList.remove('hidden');
   }
 
+  function showObstacleGameOver(type) {
+    overlayMode = 'FAIL';
+    playing = false;
+    sfx.stopBg();
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    sfx.gameOver();
+    draw();
+    if (type === 'bomb') {
+      overlayEmoji.textContent = '💣';
+      overlayTitle.textContent = 'BOOM!';
+      overlaySub.textContent   = `You hit a Bomb! Score: ${score}  Best: ${best}`;
+    } else if (type === 'shield') {
+      overlayEmoji.textContent = '🛡️';
+      overlayTitle.textContent = 'DEFLECTED!';
+      overlaySub.textContent   = `Knife bounced off Iron Shield! Score: ${score}  Best: ${best}`;
+    } else {
+      overlayEmoji.textContent = '🪨';
+      overlayTitle.textContent = 'CRASH!';
+      overlaySub.textContent   = `You hit a Stone Obstacle! Score: ${score}  Best: ${best}`;
+    }
+    playBtn.textContent      = 'PLAY AGAIN! 🎮';
+    overlay.classList.remove('hidden');
+  }
+
   function showGameOver() {
     overlayMode = 'FAIL';
     playing = false;
@@ -887,7 +1200,10 @@ class Sound {
     // 1. Draw spinner log wheel first
     drawWheel();
 
-    // 2. Draw stuck knives ON TOP of the log so blades stab into the rim and handles stick out
+    // 2. Draw obstacles on the spinner wheel
+    drawObstacles();
+
+    // 3. Draw stuck knives ON TOP of the log so blades stab into the rim and handles stick out
     stuckAngles.forEach(local => {
       const world = (local + wheelAngle + 360) % 360;
       drawStuckKnife(world);
