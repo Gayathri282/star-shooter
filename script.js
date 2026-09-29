@@ -1,6 +1,7 @@
 /**
  * Knife Toss! – Hyper-Casual Canvas Game
  * Playfield-First Minimal UI with Always-Enabled Mobile Audio Context
+ * Robust Collision Animation & Crash Prevention
  */
 
 /* ─── Level Config ─────────────────────────────────────────────────── */
@@ -323,6 +324,9 @@ class Sound {
   }
 
   function fullReset() {
+    if (levelPendingTimeout) { clearTimeout(levelPendingTimeout); levelPendingTimeout = null; }
+    levelPending = false;
+    busy        = false;
     score       = 0;
     level       = 1;
     particles   = [];
@@ -898,19 +902,25 @@ class Sound {
           const hitX = cx() + Math.cos(rad) * r;
           const hitY = cy() + Math.sin(rad) * r;
 
+          let emoji = '🪨', title = 'CRASH!', desc = 'You hit a Stone Obstacle!';
           if (hitOb.type === 'bomb') {
             sfx.bombHit();
             burst(hitX, hitY, ['#ef4444', '#f97316', '#eab308', '#000000'], 35);
-            showGameOverModal('💣', 'BOOM!', 'You hit a dangerous bomb!');
+            emoji = '💣'; title = 'BOOM!'; desc = 'You hit a dangerous bomb!';
           } else if (hitOb.type === 'shield') {
             sfx.stoneHit();
             burst(hitX, hitY, ['#e2e8f0', '#94a3b8', '#ffe066'], 28);
-            showGameOverModal('🛡️', 'DEFLECTED!', 'Blade bounced off Iron Shield!');
+            emoji = '🛡️'; title = 'DEFLECTED!'; desc = 'Blade bounced off Iron Shield!';
           } else {
             sfx.stoneHit();
             burst(hitX, hitY, ['#94a3b8', '#64748b', '#334155', '#ffe066'], 28);
-            showGameOverModal('🪨', 'CRASH!', 'You hit a Stone Obstacle!');
           }
+
+          if (levelPendingTimeout) clearTimeout(levelPendingTimeout);
+          levelPendingTimeout = setTimeout(() => {
+            levelPendingTimeout = null;
+            showGameOverModal(emoji, title, desc);
+          }, 600);
           flyDone = true;
           return;
         }
@@ -935,11 +945,15 @@ class Sound {
         addNotification('CLASH! 💥', '#ef4444', 20);
 
         const qualified = stuckAngles.length >= (levelCfg ? levelCfg.minToPass : 3);
-        if (qualified) {
-          advanceLevelSeamless();
-        } else {
-          showGameOverModal('💥', 'CLASH!', 'Blade hit another blade!');
-        }
+        if (levelPendingTimeout) clearTimeout(levelPendingTimeout);
+        levelPendingTimeout = setTimeout(() => {
+          levelPendingTimeout = null;
+          if (qualified) {
+            advanceLevelSeamless();
+          } else {
+            showGameOverModal('💥', 'CLASH!', 'Blade hit another blade!');
+          }
+        }, 600);
         flyDone = true;
 
       } else {
@@ -973,12 +987,16 @@ class Sound {
     if (allDone || noLeft) {
       levelPending = true;
       busy = true;
-      if (stuckAngles.length >= cfg.minToPass) {
-        advanceLevelSeamless();
-      } else {
-        sfx.levelFail();
-        showGameOverModal('😢', 'Level Failed!', `Needed ${cfg.minToPass} blades, got ${stuckAngles.length}`);
-      }
+      if (levelPendingTimeout) clearTimeout(levelPendingTimeout);
+      levelPendingTimeout = setTimeout(() => {
+        levelPendingTimeout = null;
+        if (stuckAngles.length >= cfg.minToPass) {
+          advanceLevelSeamless();
+        } else {
+          sfx.levelFail();
+          showGameOverModal('😢', 'Level Failed!', `Needed ${cfg.minToPass} blades, got ${stuckAngles.length}`);
+        }
+      }, 600);
       flyDone = true;
     } else {
       flyingY = S - 30;
@@ -1001,6 +1019,7 @@ class Sound {
   }
 
   function showGameOverModal(emoji, title, desc) {
+    if (levelPendingTimeout) { clearTimeout(levelPendingTimeout); levelPendingTimeout = null; }
     playing = false;
     sfx.stopBg();
     sfx.gameOver();
@@ -1012,6 +1031,7 @@ class Sound {
     finalBest.textContent     = best;
 
     gameOverModal.classList.remove('hidden');
+    draw();
   }
 
   /* ── Draw frame ─────────────────────────────────────────────────── */
@@ -1020,10 +1040,14 @@ class Sound {
 
     drawClashFlash();
 
+    let didShakeSave = false;
     if (shakeFrames > 0) {
       const dx = (Math.random() - 0.5) * 8;
       const dy = (Math.random() - 0.5) * 8;
-      C.save(); C.translate(dx, dy); shakeFrames--;
+      C.save();
+      C.translate(dx, dy);
+      shakeFrames--;
+      didShakeSave = true;
     }
 
     drawBgDots();
@@ -1048,7 +1072,9 @@ class Sound {
     drawNotifications();
     drawHUD();
 
-    if (shakeFrames >= 0 && shakeFrames < 22) C.restore?.();
+    if (didShakeSave) {
+      C.restore();
+    }
   }
 
   /* ── Main Game Loop ─────────────────────────────────────────────── */
@@ -1115,7 +1141,8 @@ class Sound {
     helpModal.classList.add('hidden');
     playing = true;
     sfx.startBg();
-    if (!raf) raf = requestAnimationFrame(loop);
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(loop);
   });
 
   helpModal.addEventListener('click', (e) => {
@@ -1123,7 +1150,8 @@ class Sound {
       helpModal.classList.add('hidden');
       playing = true;
       sfx.startBg();
-      if (!raf) raf = requestAnimationFrame(loop);
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(loop);
     }
   });
 
@@ -1133,7 +1161,8 @@ class Sound {
     fullReset();
     playing = true;
     sfx.startBg();
-    if (!raf) raf = requestAnimationFrame(loop);
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(loop);
   });
 
   // Keyboard controls
@@ -1161,5 +1190,6 @@ class Sound {
   levelStartTime = Date.now();
   playing        = true;
   sfx.startBg();
+  if (raf) cancelAnimationFrame(raf);
   raf            = requestAnimationFrame(loop);
 })();
