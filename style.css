@@ -17,7 +17,7 @@ html, body {
   font-family: 'Nunito', 'Fredoka One', sans-serif;
 }
 
-/* ── Fullscreen Playfield Canvas ──────────── */
+/* ── Fullscreen Playfield Canvas (Visually Dominates Screen) ── */
 #arena {
   position: absolute;
   inset: 0;
@@ -26,112 +26,242 @@ html, body {
   display: block;
   touch-action: none;
   background: linear-gradient(160deg, #1e1b4b 0%, #31103f 50%, #0f172a 100%);
+  z-index: 1;
 }
 
-/* ── Minimalist Floating Top HUD Pill for Points ── */
-.hud-bar {
+/* ── Minimalist Top HUD Header ───────────────────────────── */
+.top-header {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   z-index: 10;
-  pointer-events: none;
+  pointer-events: none; /* Allows canvas taps through empty header area */
 }
 
-.score-pill {
+.game-title {
+  pointer-events: auto;
+  font-family: 'Fredoka One', cursive;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.5px;
+}
+
+/* ── Extremely Compact Floating HUD Pill ──────────────────── */
+.hud-pill {
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(10px);
-  padding: 8px 18px;
+  padding: 6px 14px;
   border-radius: 50px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.4);
   font-family: 'Fredoka One', cursive;
-  font-size: 15px;
+  font-size: 13px;
   color: #1e1b4b;
 }
 
-.pill-item {
+.hud-item {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
-.pill-item b {
+.hud-item b {
   color: #e84393;
-  font-size: 18px;
+  font-size: 15px;
 }
 
-.pill-divider {
+.hud-divider {
   width: 1px;
-  height: 16px;
+  height: 14px;
   background: rgba(0, 0, 0, 0.15);
 }
 
-
-
-/* ── Message Overlay ───────────────────── */
-.overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.78);
-  backdrop-filter: blur(8px);
+/* ── Small Circular ? Help Button ─────────────────────────── */
+.help-btn {
+  pointer-events: auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  color: #1e1b4b;
+  font-family: 'Fredoka One', cursive;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 20;
+  transition: transform 0.12s ease, background 0.12s ease;
 }
 
-.overlay-box {
-  text-align: center;
-  padding: 28px 24px;
+.help-btn:active {
+  transform: scale(0.92);
   background: #ffffff;
-  border-radius: 28px;
-  border: 3px solid #f9b8df;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-  max-width: 320px;
-  width: 85%;
 }
 
-.overlay-emoji {
-  font-size: 50px;
-  line-height: 1;
-  margin-bottom: 6px;
+/* ── Modal Overlay Backdrop & Compact Cards ───────────────── */
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 16px;
+  animation: fadeIn 0.15s ease-out;
 }
 
-.overlay-title {
+.modal-card {
+  background: #ffffff;
+  border-radius: 20px;
+  border: 2px solid #f9b8df;
+  padding: 20px;
+  width: 90%;
+  max-width: 300px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  text-align: left;
+  animation: modalPop 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.modal-header h3 {
+  margin: 0;
   font-family: 'Fredoka One', cursive;
-  font-size: 28px;
+  font-size: 18px;
   color: #e84393;
-  line-height: 1;
-  margin-bottom: 6px;
 }
 
-.overlay-sub {
-  font-size: 14px;
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #64748b;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+  transition: color 0.1s;
+}
+
+.close-btn:hover {
+  color: #0f172a;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.help-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.help-icon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+
+/* ── Game Over Compact Modal Styling ─────────────────────── */
+.game-over-card {
+  text-align: center;
+}
+
+.modal-emoji {
+  font-size: 44px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.modal-card h3 {
+  margin: 4px 0;
+  font-family: 'Fredoka One', cursive;
+  font-size: 22px;
+  color: #e84393;
+}
+
+.modal-card p {
+  margin: 0 0 10px 0;
+  font-size: 13px;
   font-weight: 700;
   color: #64748b;
-  margin-bottom: 18px;
 }
 
-.play-btn {
+.modal-stats {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin: 12px 0;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.modal-stats b {
+  color: #e84393;
+  font-size: 16px;
+}
+
+.retry-btn {
+  width: 100%;
   background: linear-gradient(135deg, #f472b6, #e84393);
   color: #fff;
   border: none;
-  border-radius: 16px;
-  padding: 12px 32px;
+  border-radius: 14px;
+  padding: 10px 20px;
   font-family: 'Fredoka One', cursive;
-  font-size: 18px;
+  font-size: 16px;
   cursor: pointer;
   box-shadow: 0 4px 0 #c0277a;
   transition: transform 0.12s;
-  display: inline-block;
+  margin-top: 6px;
 }
-.play-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #c0277a; }
 
-.hidden { display: none !important; }
+.retry-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #c0277a;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalPop {
+  from { transform: scale(0.88); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
